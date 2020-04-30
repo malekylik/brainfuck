@@ -1,19 +1,26 @@
-const OpKind = {
-  INVALID_OP: 'INVALID_OP',
-  INC_PTR: 'INC_PTR',
-  DEC_PTR: 'DEC_PTR',
-  INC_DATA: 'INC_DATA',
-  DEC_DATA: 'DEC_DATA',
-  READ_STDIN: 'READ_STDIN',
-  WRITE_STDOUT: 'WRITE_STDOUT',
-  LOOP_SET_TO_ZERO: 'LOOP_SET_TO_ZERO',
-  LOOP_MOVE_PTR: 'LOOP_MOVE_PTR',
-  LOOP_MOVE_DATA: 'LOOP_MOVE_DATA',
-  JUMP_IF_DATA_ZERO: 'JUMP_IF_DATA_ZERO',
-  JUMP_IF_DATA_NOT_ZERO: 'JUMP_IF_DATA_NOT_ZERO',
+import { emitter } from './emitter';
+
+enum OpKind {
+  INVALID_OP = 'INVALID_OP',
+  INC_PTR = 'INC_PTR',
+  DEC_PTR = 'DEC_PTR',
+  INC_DATA = 'INC_DATA',
+  DEC_DATA = 'DEC_DATA',
+  READ_STDIN = 'READ_STDIN',
+  WRITE_STDOUT = 'WRITE_STDOUT',
+  LOOP_SET_TO_ZERO = 'LOOP_SET_TO_ZERO',
+  LOOP_MOVE_PTR = 'LOOP_MOVE_PTR',
+  LOOP_MOVE_DATA = 'LOOP_MOVE_DATA',
+  JUMP_IF_DATA_ZERO = 'JUMP_IF_DATA_ZERO',
+  JUMP_IF_DATA_NOT_ZERO = 'JUMP_IF_DATA_NOT_ZERO',
 };
 
-function opKindToChar(opKind) {
+type Opcode = {
+  kind: OpKind,
+  argument: number,
+}
+
+function opKindToChar(opKind: OpKind) {
   switch (opKind) {
     case OpKind.INC_PTR:
       return ">";
@@ -44,11 +51,11 @@ function opKindToChar(opKind) {
   return 'unknown';
 }
 
-function serializeOpcode(opcode) {
+function serializeOpcode(opcode: Opcode): string {
   return `${opKindToChar(opcode.kind)}${opcode.argument}`;
 }
 
-function createOpcode(opKind, argument) {
+function createOpcode(opKind: OpKind, argument: number): Opcode {
   return {
     kind: opKind,
     argument,
@@ -58,7 +65,7 @@ function createOpcode(opKind, argument) {
 const MEMORY_SIZE = 30000;
 const debug = false;
 
-function parse_from_stream(programFile) {
+function parse_from_stream(programFile: string) {
   const tokens = [];
 
   for (let i = 0; i < programFile.length; i++) {
@@ -79,7 +86,7 @@ function parse_from_stream(programFile) {
 //
 // If optimization succeeds, returns a sequence of instructions that replace the
 // loop; otherwise, returns an empty vector.
-function optimize_loop(ops, loop_start) {
+function optimize_loop(ops: Array<Opcode>, loop_start: number): Array<Opcode> {
   const new_ops = [];
 
   if (ops.length - loop_start === 2) {
@@ -119,10 +126,10 @@ function optimize_loop(ops, loop_start) {
   return new_ops;
 }
 
-function translate_program(tokens) {
+function translate_program(tokens: Array<string>): Array<Opcode> {
   let pc = 0;
   let program_size = tokens.length;
-  let ops = [];
+  let ops: Array<Opcode> = [];
 
   // Throughout the translation loop, this stack contains offsets (in the ops
   // vector) of open brackets (JUMP_IF_DATA_ZERO ops) waiting for a closing
@@ -207,43 +214,10 @@ function translate_program(tokens) {
   return ops;
 }
 
-function compute_jumptable(tokens) {
-  let pc = 0;
-  let program_size = tokens.length;
-  const jumptable = new Uint32Array(program_size);
-
-  while (pc < program_size) {
-    const instruction = tokens[pc];
-
-    if (instruction == '[') {
-      let bracket_nesting = 1;
-      let seek = pc;
-
-      while (bracket_nesting && ++seek < program_size) {
-        if (tokens[seek] == ']') {
-          bracket_nesting--;
-        } else if (tokens[seek] == '[') {
-          bracket_nesting++;
-        }
-      }
-
-      if (!bracket_nesting) {
-        jumptable[pc] = seek;
-        jumptable[seek] = pc;
-      } else {
-        console.warn(`unmatched '[' at pc=${pc}`);
-      }
-    }
-    pc++;
-  }
-
-  return jumptable;
-}
-
-function _simpleinterp(ops) {
+function _simpleinterp(ops: Array<Opcode>):  { pc: number, dataptr: number, memory: Uint8Array, op_cost: { [prop: string]: number; }, trace_count: { [prop: string]: number; } } {
   const memory = new Uint8Array(MEMORY_SIZE).fill(0);
-  const op_cost = {};
-  const trace_count = {};
+  const op_cost: { [prop: string]: number; } = {};
+  const trace_count: { [prop: string]: number; } = {};
   let current_trace = '';
   let pc = 0;
   let dataptr = 0;
@@ -251,9 +225,9 @@ function _simpleinterp(ops) {
   while (pc < ops.length) {
     const op = ops[pc];
 
-    if (debug) {
-      op_cost[op.kind] = 1 + (op_cost[op.kind] || 0);
-    }
+    // if (debug) {
+    //   op_cost[op.kind] = 1 + (op_cost[op.kind] || 0);
+    // }
 
     switch (op.kind) {
       case OpKind.INC_PTR:
@@ -307,18 +281,18 @@ function _simpleinterp(ops) {
       default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
     }
 
-    if (debug) {
-      if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
-        current_trace = "";
-      } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
-        if (current_trace.length > 0) {
-          trace_count[current_trace] = 1 + (trace_count[current_trace] || 0);
-          current_trace = "";
-        }
-      } else {
-        current_trace += ` ${serializeOpcode(op)}`;
-      }
-    }
+    // if (debug) {
+    //   if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
+    //     current_trace = '';
+    //   } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
+    //     if (current_trace.length > 0) {
+    //       trace_count[current_trace] = 1 + (trace_count[current_trace] || 0);
+    //       current_trace = '';
+    //     }
+    //   } else {
+    //     current_trace += ` ${serializeOpcode(op)}`;
+    //   }
+    // }
 
     pc++;
   }
@@ -327,7 +301,7 @@ function _simpleinterp(ops) {
   return { pc, dataptr, memory, op_cost, trace_count };
 }
 
-function _simpleinterpDebug(ops) {
+function _simpleinterpDebug(ops: Array<Opcode>) {
   const { pc, dataptr, memory, op_cost, trace_count } = _simpleinterp(ops);
 
   // Done running the program. Dump state if verbose.
@@ -348,7 +322,7 @@ function _simpleinterpDebug(ops) {
 
   let total = 0;
   Object.entries(op_cost).forEach(([op, count]) => {
-    console.log(`${opKindToChar(op)}  -->  ${count}`);
+    console.log(`${opKindToChar(op as OpKind)}  -->  ${count}`);
 
     total += count;
   });
@@ -382,6 +356,8 @@ self.addEventListener('message', (e) => {
         self.postMessage({ type: 'end' });
     }
 });
+
+console.log(emitter());
 
 
 // parse to js = 25s
