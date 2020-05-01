@@ -3,9 +3,14 @@
 const tx = new TextEncoder();
 
 const Numbers = {
+  // +
+  add(): Array<number> {
+    return [43];
+  },
+
   getInt(int: number): Array<number> {
     return Array.from(tx.encode(String(int)));
-  }
+  },
 };
 
 const Punctuation = {

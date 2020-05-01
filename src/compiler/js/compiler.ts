@@ -23,17 +23,22 @@ export function compile(ops: Array<Opcode>): void {
     .number(0)
     .endLine();
 
-    // let pc = 0;
-    // while (pc < ops.length) {
-    //   const op = ops[pc];
+    let pc = 0;
+    while (pc < ops.length) {
+      const op = ops[pc];
   
-      // switch (op.kind) {
-      //   case OpKind.INC_PTR: {
-      //     textGenerator
-
-
-      //     break;
-      //   }
+      switch (op.kind) {
+        case OpKind.INC_PTR: {
+          textGenerator
+            .newLine()
+            .name(dataptr)
+            .assigne()
+            .name(dataptr)
+            .add()
+            .number(op.argument)
+            .endLine();
+          break;
+        }
       //     dataptr += op.argument;
       //   case OpKind.DEC_PTR:
       //     dataptr -= op.argument;
@@ -81,10 +86,10 @@ export function compile(ops: Array<Opcode>): void {
         //   }
         //   break;
     //     default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
-    //   }
+      }
   
-    //   pc++;
-    // }
+      pc++;
+    }
 
   console.log(textGenerator.toString());
 }

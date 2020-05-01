@@ -29,6 +29,12 @@ export class TextGenerator {
     return this;
   }
 
+  add(): TextGenerator {
+    this.pushText(Bin.Numbers.add());
+
+    return this;
+  }
+
   name(name: string): TextGenerator {
     this.pushText(Bin.Names.getName(name));
 
