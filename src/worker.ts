@@ -3,6 +3,17 @@ import { translate_program } from '@ir/parser';
 import { simpleinterp } from '@interpratater/interpratater';
 import { compile } from '@compiler/js/compiler';
 
+function inF(): string {
+  return prompt('enter value');
+}
+
+function outF(v: number): void {
+  self.postMessage({ type: 'out', value: String.fromCharCode(v) });
+}
+
+(self as any).inF = inF;
+(self as any).outF = outF;
+
 self.addEventListener('message', (e) => {
     const { type, src } = e.data;
 
@@ -11,22 +22,18 @@ self.addEventListener('message', (e) => {
 
       const ops = translate_program(tokens);
 
-      compile(ops, 'inF', 'outF');
+      const now = performance.now();
+      console.log(`start at ${now}`);
 
-        // const tokens = parse_from_stream(src);
+      const compiledFunc = compile(ops, 'inF', 'outF');
 
-        // const ops = translate_program(tokens);
+      compiledFunc();
 
-        // const now = performance.now();
-        // console.log(`start at ${now}`);
+      const end = performance.now();
+      console.log(`end at ${end}`);
+      console.log(`done in: ${end - now}`);
 
-        // simpleinterp(ops);
-
-        // const end = performance.now();
-        // console.log(`end at ${end}`);
-        // console.log(`done in: ${end - now}`);
-
-        // self.postMessage({ type: 'end' });
+      self.postMessage({ type: 'end' });
     }
 });
 
@@ -63,4 +70,4 @@ self.addEventListener('message', (e) => {
 // <1 d1 >3       --> 4689518
 // >4 d-36 >5     --> 3845696
 // with (LOOP_SET_TO_ZERO, LOOP_MOVE_PTR, LOOP_MOVE_DATA) 31564.180000015767 = 31.5s
-
+// compiled to js 23954.94999998482 = 24s

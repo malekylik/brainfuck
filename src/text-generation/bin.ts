@@ -18,9 +18,19 @@ const Numbers = {
 };
 
 const Conditions = {
+  // if
+  getIf(): Array<number> {
+    return [105, 102];
+  },
+
   // <
   getLess(): Array<number> {
     return [60];
+  },
+
+  // ===
+  getStrictEqual(): Array<number> {
+    return [61, 61, 61];
   },
 };
 

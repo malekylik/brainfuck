@@ -71,7 +71,7 @@ class ForDeclaration {
   }
 
 
-  end(): ForCondition {
+  endForDeclaration(): ForCondition {
     this.textGenerator.binString.push(Bin.Punctuation.getEndLine());
 
     return new ForCondition(this.textGenerator);
@@ -103,13 +103,25 @@ class ForCondition {
     return this;
   }
 
+  strictEqual(): ForCondition {
+    this.textGenerator.strictEqual();
+
+    return this;
+  }
+
   comma(): ForCondition {
     this.textGenerator.newLine();
 
     return this;
   }
 
-  end(): ForUpdate  {
+  objectProperty(index: string | number): ForCondition {
+    this.textGenerator.objectProperty(index);
+
+    return this;
+  }
+
+  endForCondition(): ForUpdate  {
     this.textGenerator.binString.push(Bin.Punctuation.getEndLine());
 
     return new ForUpdate(this.textGenerator);
@@ -147,7 +159,7 @@ class ForUpdate {
     return this;
   }
 
-  end(): TextGenerator  {
+  endForUpdate(): TextGenerator  {
     this.textGenerator.binString.push(
       Bin.Punctuation.getCloseBracket().concat(
         Bin.Punctuation.getSpace(),
@@ -159,15 +171,94 @@ class ForUpdate {
   }
 }
 
+class IfGenerator {
+  textGenerator: TextGenerator;
+
+  constructor(textGenerator: TextGenerator) {
+    this.textGenerator = textGenerator;
+  }
+
+  if(): IfCondition {
+    this.textGenerator.binString.push(Bin.Conditions.getIf().concat(
+      Bin.Punctuation.getSpace(),
+      Bin.Punctuation.getOpenBracket()
+    ));
+
+    return new IfCondition(this.textGenerator);
+  }
+
+  endIf(): TextGenerator {
+    this.textGenerator.pushText(Bin.Punctuation.getCurclyCloseBracket());
+
+    return this.textGenerator;
+  }
+}
+
+class IfCondition {
+  textGenerator: TextGenerator;
+
+  constructor(textGenerator: TextGenerator) {
+    this.textGenerator = textGenerator;
+  }
+
+  name(name: string): IfCondition {
+    this.textGenerator.name(name);
+
+    return this;
+  }
+
+  number(n: number): IfCondition {
+    this.textGenerator.number(n);
+
+    return this;
+  }
+
+  less(): IfCondition {
+    this.textGenerator.less();
+
+    return this;
+  }
+
+  strictEqual(): IfCondition {
+    this.textGenerator.strictEqual();
+
+    return this;
+  }
+
+  comma(): IfCondition {
+    this.textGenerator.newLine();
+
+    return this;
+  }
+
+  objectProperty(index: string | number): IfCondition {
+    this.textGenerator.objectProperty(index);
+
+    return this;
+  }
+
+  endIfCondition(): TextGenerator {
+    this.textGenerator.binString.push(Bin.Punctuation.getCloseBracket().concat(
+        Bin.Punctuation.getSpace(),
+        Bin.Punctuation.getCurclyOpenBracket(),
+      )
+    );
+
+    return this.textGenerator;
+  }
+}
+
 export class TextGenerator {
   binString: Array<Array<number>>;
   isStartLine: boolean;
   forGenerator: ForGenerator;
+  ifGenerator: IfGenerator;
 
   constructor (start: Array<Array<number>> = []) {
     this.binString = start;
     this.isStartLine = true;
     this.forGenerator = new ForGenerator(this);
+    this.ifGenerator = new IfGenerator(this);
   }
 
   let(): TextGenerator {
@@ -235,8 +326,22 @@ export class TextGenerator {
     return this;
   }
 
+  strictEqual(): TextGenerator {
+    this.pushText(Bin.Conditions.getStrictEqual());
+
+    return this;
+  }
+
   for(): ForDeclaration {
     return this.forGenerator.for();
+  }
+
+  if (): IfCondition {
+    return this.ifGenerator.if();
+  }
+
+  endIf(): TextGenerator {
+    return this.ifGenerator.endIf();
   }
 
   endFor(): TextGenerator {

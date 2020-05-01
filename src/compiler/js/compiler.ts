@@ -3,7 +3,7 @@ import { OpKind } from '@ir/opcode-kinds';
 import { Opcode } from '@ir/opcode';
 import { opKindToChar } from '@ir/utils';
 
-export function compile(ops: Array<Opcode>, inF: string, outF: string): void {
+export function compile(ops: Array<Opcode>, inF: string, outF: string): CompiledFunc {
   const textGenerator = new TextGenerator();
   const memoryName = 'memory';
   const dataptr = 'p';
@@ -80,6 +80,7 @@ export function compile(ops: Array<Opcode>, inF: string, outF: string): void {
             .subtract()
             .number(op.argument)
             .endLine();
+
           break;
         }
 
@@ -91,24 +92,24 @@ export function compile(ops: Array<Opcode>, inF: string, outF: string): void {
             .name('i')
             .assigne()
             .number(0)
-            .end()
+            .endForDeclaration()
             .name('i')
             .less()
             .number(op.argument)
-            .end()
+            .endForCondition()
             .name('i')
             .assigne()
             .name('i')
             .add()
             .number(1)
-            .end()
-            .newLine()
-            .name(memoryName)
-            .objectProperty(dataptr)
-            .assigne()
-            .call(inF)
-            .endLine()
-            .newLine()
+            .endForUpdate()
+              .newLine()
+              .name(memoryName)
+              .objectProperty(dataptr)
+              .assigne()
+              .call(inF)
+              .endLine()
+              .newLine()
             .endFor()
             .endLine();
 
@@ -123,57 +124,124 @@ export function compile(ops: Array<Opcode>, inF: string, outF: string): void {
             .name('i')
             .assigne()
             .number(0)
-            .end()
+            .endForDeclaration()
             .name('i')
             .less()
             .number(op.argument)
-            .end()
+            .endForCondition()
             .name('i')
             .assigne()
             .name('i')
             .add()
             .number(1)
-            .end()
-            .newLine()
-            .call(outF, [`${memoryName}[${dataptr}]`])
-            .endLine()
-            .newLine()
+            .endForUpdate()
+              .newLine()
+              .call(outF, [`${memoryName}[${dataptr}]`])
+              .endLine()
+              .newLine()
             .endFor()
             .endLine();
 
             break;
         }
-        // case OpKind.LOOP_SET_TO_ZERO:
-        //   memory[dataptr] = 0;
-        //   break;
-        // case OpKind.LOOP_MOVE_PTR:
-        //   while (memory[dataptr]) {
-        //     dataptr += op.argument;
-        //   }
-        //   break;
-        // case OpKind.LOOP_MOVE_DATA: {
-        //   if (memory[dataptr]) {
-        //     const move_to_ptr = dataptr + op.argument;
-        //     memory[move_to_ptr] += memory[dataptr];
-        //     memory[dataptr] = 0;
-        //   }
-        //   break;
-        // }
-        // case OpKind.JUMP_IF_DATA_ZERO:
-        //   if (memory[dataptr] == 0) {
-        //     pc = op.argument;
-        //   }
-        //   break;
-        // case OpKind.JUMP_IF_DATA_NOT_ZERO:
-        //   if (memory[dataptr] != 0) {
-        //     pc = op.argument;
-        //   }
-        //   break;
-    //     default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
+
+        case OpKind.LOOP_SET_TO_ZERO: {
+          textGenerator
+            .newLine()
+            .name(memoryName)
+            .objectProperty(dataptr)
+            .assigne()
+            .number(0)
+            .endLine()
+
+          break;
+        }
+
+        case OpKind.LOOP_MOVE_PTR: {
+          textGenerator
+          .newLine()
+          .for()
+          .endForDeclaration()
+          .name(memoryName)
+          .objectProperty(dataptr)
+          .endForCondition()
+          .endForUpdate()
+            .newLine()
+            .name(dataptr)
+            .assigne()
+            .name(dataptr)
+            .add()
+            .number(op.argument)
+            .endLine()
+            .newLine()
+          .endFor();
+
+          break;
+        }
+
+        case OpKind.LOOP_MOVE_DATA: {
+          textGenerator
+            .newLine()
+            .if()
+            .name(memoryName)
+            .objectProperty(dataptr)
+            .endIfCondition()
+              .newLine()
+              .const()
+              .name('move_to_ptr')
+              .assigne()
+              .name(dataptr)
+              .add()
+              .number(op.argument)
+              .endLine()
+              .newLine()
+              .name(memoryName)
+              .objectProperty('move_to_ptr')
+              .assigne()
+              .name(memoryName)
+              .objectProperty('move_to_ptr')
+              .add()
+              .name(memoryName)
+              .objectProperty(dataptr)
+              .endLine()
+              .newLine()
+              .name(memoryName)
+              .objectProperty(dataptr)
+              .assigne()
+              .number(0)
+              .endLine()
+              .newLine()
+            .endIf();
+
+          break;
+        }
+
+        case OpKind.JUMP_IF_DATA_ZERO: {
+          textGenerator
+            .newLine()
+            .for()
+            .endForDeclaration()
+            .name(memoryName)
+            .objectProperty(dataptr)
+            .endForCondition()
+            .endForUpdate()
+
+          break;
+        }
+
+        case OpKind.JUMP_IF_DATA_NOT_ZERO: {
+          textGenerator
+            .newLine()
+            .endFor();
+
+          break;
+        }
+
+        default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
       }
   
       pc++;
     }
 
-  console.log(textGenerator.toString());
+  return new Function(textGenerator.toString()) as CompiledFunc;
 }
