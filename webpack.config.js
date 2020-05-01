@@ -101,6 +101,7 @@ const workerConfig = {
     alias: {
       '@ir': path.resolve(__dirname, 'src', 'ir'),
       '@interpratater': path.resolve(__dirname, 'src', 'interpratater'),
+      '@compiler': path.resolve(__dirname, 'src', 'compiler'),
     }
   }
 };

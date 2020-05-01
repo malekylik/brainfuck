@@ -1,25 +1,28 @@
 import { parse_from_stream } from './utils/parser';
 import { translate_program } from '@ir/parser';
 import { simpleinterp } from '@interpratater/interpratater';
+import { compile } from '@compiler/js/compiler';
 
 self.addEventListener('message', (e) => {
     const { type, src } = e.data;
 
     if (type === 'start') {
-        const tokens = parse_from_stream(src);
+      compile();
 
-        const ops = translate_program(tokens);
+        // const tokens = parse_from_stream(src);
 
-        const now = performance.now();
-        console.log(`start at ${now}`);
+        // const ops = translate_program(tokens);
 
-        simpleinterp(ops);
+        // const now = performance.now();
+        // console.log(`start at ${now}`);
 
-        const end = performance.now();
-        console.log(`end at ${end}`);
-        console.log(`done in: ${end - now}`);
+        // simpleinterp(ops);
 
-        self.postMessage({ type: 'end' });
+        // const end = performance.now();
+        // console.log(`end at ${end}`);
+        // console.log(`done in: ${end - now}`);
+
+        // self.postMessage({ type: 'end' });
     }
 });
 

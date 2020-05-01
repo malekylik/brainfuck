@@ -12,6 +12,7 @@
       "paths": {
         "@ir/*": ["./src/ir/*"],
         "@interpratater/*": ["./src/interpratater/*"],
+        "@compiler/*": ["./src/compiler/*"]
       }
   },
   "include": [
