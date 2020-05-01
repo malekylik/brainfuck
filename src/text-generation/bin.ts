@@ -7,6 +7,10 @@ const Numbers = {
   add(): Array<number> {
     return [43];
   },
+  // -
+  subtract(): Array<number> {
+    return [45];
+  },
 
   getInt(int: number): Array<number> {
     return Array.from(tx.encode(String(int)));

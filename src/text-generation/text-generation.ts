@@ -35,6 +35,12 @@ export class TextGenerator {
     return this;
   }
 
+  subtract(): TextGenerator {
+    this.pushText(Bin.Numbers.subtract());
+
+    return this;
+  }
+
   name(name: string): TextGenerator {
     this.pushText(Bin.Names.getName(name));
 

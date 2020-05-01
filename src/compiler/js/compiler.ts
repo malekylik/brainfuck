@@ -37,12 +37,22 @@ export function compile(ops: Array<Opcode>): void {
             .add()
             .number(op.argument)
             .endLine();
+
           break;
         }
-      //     dataptr += op.argument;
-      //   case OpKind.DEC_PTR:
-      //     dataptr -= op.argument;
-      //     break;
+        case OpKind.DEC_PTR: {
+          textGenerator
+            .newLine()
+            .name(dataptr)
+            .assigne()
+            .name(dataptr)
+            .subtract()
+            .number(op.argument)
+            .endLine();
+
+          break;
+        }
+
         // case OpKind.INC_DATA:
         //   memory[dataptr] += op.argument;
         //   break;
