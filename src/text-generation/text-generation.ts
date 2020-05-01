@@ -4,13 +4,27 @@ const tx = new TextDecoder();
 
 export class TextGenerator {
   binString: Array<Array<number>>;
+  isStartLine: boolean;
 
   constructor (start: Array<Array<number>> = []) {
     this.binString = start;
+    this.isStartLine = true;
+  }
+
+  let(): TextGenerator {
+    this.pushText(Bin.Names.ReservedNames.VarDeclaration.getLet());
+
+    return this;
   }
 
   const(): TextGenerator {
     this.pushText(Bin.Names.ReservedNames.VarDeclaration.getConst());
+
+    return this;
+  }
+
+  number(n: number): TextGenerator {
+    this.pushText(Bin.Numbers.getInt(n));
 
     return this;
   }
@@ -41,6 +55,7 @@ export class TextGenerator {
 
   newLine(): TextGenerator {
     this.binString.push(Bin.Punctuation.getNewLine());
+    this.isStartLine = true;
 
     return this;
   }
@@ -50,10 +65,11 @@ export class TextGenerator {
   }
 
   private pushText(text: Array<number>): TextGenerator {
-    if (this.binString.length !== 0) {
-      this.binString.push(Bin.Punctuation.getSpace().concat(text));
-    } else {
+    if (this.isStartLine) {
       this.binString.push(text);
+      this.isStartLine = false;
+    } else {
+      this.binString.push(Bin.Punctuation.getSpace().concat(text));
     }
 
     return this;

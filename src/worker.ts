@@ -7,7 +7,11 @@ self.addEventListener('message', (e) => {
     const { type, src } = e.data;
 
     if (type === 'start') {
-      compile();
+       const tokens = parse_from_stream(src);
+
+      const ops = translate_program(tokens);
+
+      compile(ops);
 
         // const tokens = parse_from_stream(src);
 

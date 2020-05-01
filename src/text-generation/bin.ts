@@ -43,6 +43,11 @@ const Punctuation = {
 
 
 const VarDeclaration = {
+  // let
+  getLet(): Array<number> {
+    return [108, 101, 116];
+  },
+
   // const
   getConst(): Array<number> {
     return [99, 111, 110, 115, 116];
