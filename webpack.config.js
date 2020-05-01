@@ -1,6 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+const { DefinePlugin } = require('webpack');
 
 const config = {
   entry: {
@@ -27,7 +28,7 @@ const config = {
       template: './src/index.html',
       filename: 'index.html',
     }),
-    new ForkTsCheckerWebpackPlugin()
+    new ForkTsCheckerWebpackPlugin(),
   ],
   module: {
     rules: [
@@ -82,6 +83,7 @@ const workerConfig = {
       }
   })()`,
   },
+  plugins: [],
   module: {
     rules: [
       {
@@ -95,21 +97,46 @@ const workerConfig = {
     ]
   },
   resolve: {
-    extensions: ['.js', '.ts']
+    extensions: ['.js', '.ts'],
+    alias: {
+      '@ir': path.resolve(__dirname, 'src', 'ir'),
+      '@interpratater': path.resolve(__dirname, 'src', 'interpratater'),
+    }
   }
 };
 
 module.exports = (env, argv) => {
+  
   if (argv.mode === 'production') {
     config.mode = 'production';
     config.devtool = 'none';
+    config.plugins.push(
+      new DefinePlugin({
+        __DEV__: false
+      })
+    );
     workerConfig.mode = 'production';
     workerConfig.devtool = 'none';
+    workerConfig.plugins.push(
+      new DefinePlugin({
+        __DEV__: false
+      })
+    );
   } else {
     config.mode = 'development';
     config.devtool = 'eval-source-map';
+    config.plugins.push(
+      new DefinePlugin({
+        __DEV__: true
+      })
+    );
     workerConfig.mode = 'development';
     workerConfig.devtool = 'eval-source-map';
+    workerConfig.plugins.push(
+      new DefinePlugin({
+        __DEV__: true
+      })
+    );
   }
 
   return [config, workerConfig];

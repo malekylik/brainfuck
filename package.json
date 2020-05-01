@@ -8,6 +8,7 @@
     "compile": "tsc",
     "build": "webpack --mode=production --config webpack.config.js",
     "start": "webpack-dev-server --mode=development",
+    "server": "http-server",
     "tslint": "tslint -c tslint.json 'src/**/*.ts'"
   },
   "repository": {

@@ -8,6 +8,11 @@
       "allowJs": false,
       "skipLibCheck": true,
       "lib": ["ESNext", "WebWorker", "DOM"],
+      "baseUrl": "./",
+      "paths": {
+        "@ir/*": ["./src/ir/*"],
+        "@interpratater/*": ["./src/interpratater/*"],
+      }
   },
   "include": [
     "src"
