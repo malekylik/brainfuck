@@ -17,6 +17,13 @@ const Numbers = {
   },
 };
 
+const Conditions = {
+  // <
+  getLess(): Array<number> {
+    return [60];
+  },
+};
+
 const Punctuation = {
   // '\n'
   getNewLine(): Array<number> {
@@ -28,14 +35,19 @@ const Punctuation = {
     return [32];
   },
 
-  // '('
+  // (
   getOpenBracket(): Array<number> {
     return [40];
   },
 
-  // ')'
+  // )
   getCloseBracket(): Array<number> {
     return [41];
+  },
+
+  // ,
+  getComma(): Array<number> {
+    return [44];
   },
 
   // ;
@@ -46,6 +58,16 @@ const Punctuation = {
   // =
   getAssigne(): Array<number> {
     return [61];
+  },
+
+  // {
+  getCurclyOpenBracket(): Array<number> {
+    return [123];
+  },
+
+  // }
+  getCurclyCloseBracket(): Array<number> {
+    return [125];
   },
 };
 
@@ -76,6 +98,11 @@ const ReservedNames = {
   // new
   getNew(): Array<number> {
     return [110, 101, 119];
+  },
+
+  // for
+  getFor(): Array<number> {
+    return [102, 111, 114];
   },
 };
 
@@ -126,4 +153,5 @@ export const Bin = {
   Punctuation,
   Numbers,
   FunctionBin,
+  Conditions,
 };

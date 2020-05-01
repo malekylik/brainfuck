@@ -11,7 +11,7 @@ self.addEventListener('message', (e) => {
 
       const ops = translate_program(tokens);
 
-      compile(ops);
+      compile(ops, 'inF', 'outF');
 
         // const tokens = parse_from_stream(src);
 

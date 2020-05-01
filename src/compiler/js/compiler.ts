@@ -3,7 +3,7 @@ import { OpKind } from '@ir/opcode-kinds';
 import { Opcode } from '@ir/opcode';
 import { opKindToChar } from '@ir/utils';
 
-export function compile(ops: Array<Opcode>): void {
+export function compile(ops: Array<Opcode>, inF: string, outF: string): void {
   const textGenerator = new TextGenerator();
   const memoryName = 'memory';
   const dataptr = 'p';
@@ -26,7 +26,7 @@ export function compile(ops: Array<Opcode>): void {
     let pc = 0;
     while (pc < ops.length) {
       const op = ops[pc];
-  
+
       switch (op.kind) {
         case OpKind.INC_PTR: {
           textGenerator
@@ -82,16 +82,67 @@ export function compile(ops: Array<Opcode>): void {
             .endLine();
           break;
         }
-        // case OpKind.READ_STDIN:
-        //   for (let i = 0; i < op.argument; i++) {
-        //     memory[dataptr] = Number(prompt('enter value'));
-        //   }
-        //   break;
-        // case OpKind.WRITE_STDOUT:
-        //   for (let i = 0; i < op.argument; i++) {
-        //     self.postMessage({ type: 'out', value: String.fromCharCode(memory[dataptr]) });
-        //   }
-        //   break;
+
+        case OpKind.READ_STDIN: {
+          textGenerator
+            .newLine()
+            .for()
+            .let()
+            .name('i')
+            .assigne()
+            .number(0)
+            .end()
+            .name('i')
+            .less()
+            .number(op.argument)
+            .end()
+            .name('i')
+            .assigne()
+            .name('i')
+            .add()
+            .number(1)
+            .end()
+            .newLine()
+            .name(memoryName)
+            .objectProperty(dataptr)
+            .assigne()
+            .call(inF)
+            .endLine()
+            .newLine()
+            .endFor()
+            .endLine();
+
+            break;
+          }
+
+        case OpKind.WRITE_STDOUT: {
+          textGenerator
+            .newLine()
+            .for()
+            .let()
+            .name('i')
+            .assigne()
+            .number(0)
+            .end()
+            .name('i')
+            .less()
+            .number(op.argument)
+            .end()
+            .name('i')
+            .assigne()
+            .name('i')
+            .add()
+            .number(1)
+            .end()
+            .newLine()
+            .call(outF, [`${memoryName}[${dataptr}]`])
+            .endLine()
+            .newLine()
+            .endFor()
+            .endLine();
+
+            break;
+        }
         // case OpKind.LOOP_SET_TO_ZERO:
         //   memory[dataptr] = 0;
         //   break;
