@@ -102,6 +102,7 @@ const workerConfig = {
       '@ir': path.resolve(__dirname, 'src', 'ir'),
       '@interpratater': path.resolve(__dirname, 'src', 'interpratater'),
       '@compiler': path.resolve(__dirname, 'src', 'compiler'),
+      "@text-generation": path.resolve(__dirname, 'src', 'text-generation'),
     }
   }
 };

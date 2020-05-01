@@ -1,9 +1,14 @@
-import { createMemory } from './memory';
-
-const tx = new TextDecoder();
+import { TextGenerator } from '@text-generation/text-generation';
 
 export function compile(): void {
-  const a = createMemory('ad', 30000);
-  console.log(a);
-  console.log(tx.decode(a));
+  const textGenerator = new TextGenerator();
+
+  textGenerator
+    .const()
+    .name('memory')
+    .assigne()
+    .newUint8Array(123)
+    .endLine();
+
+  console.log(textGenerator.toString());
 }
