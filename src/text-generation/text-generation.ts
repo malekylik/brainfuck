@@ -47,6 +47,17 @@ export class TextGenerator {
     return this;
   }
 
+  objectProperty(index: string | number): TextGenerator {
+    this.binString.push(
+      Bin.Names.getObjectPropertyOpenBracket().concat(
+        typeof index === 'string' ? Bin.Names.getName(index) : Bin.Numbers.getInt(index),
+        Bin.Names.getObjectPropertyCloseBracket(),
+      )
+    );
+
+    return this;
+  }
+
   assigne(): TextGenerator {
     this.pushText(Bin.Punctuation.getAssigne());
 

@@ -40,6 +40,7 @@ export function compile(ops: Array<Opcode>): void {
 
           break;
         }
+
         case OpKind.DEC_PTR: {
           textGenerator
             .newLine()
@@ -53,12 +54,34 @@ export function compile(ops: Array<Opcode>): void {
           break;
         }
 
-        // case OpKind.INC_DATA:
-        //   memory[dataptr] += op.argument;
-        //   break;
-        // case OpKind.DEC_DATA:
-        //   memory[dataptr] -= op.argument;
-        //   break;
+        case OpKind.INC_DATA: {
+          textGenerator
+            .newLine()
+            .name(memoryName)
+            .objectProperty(dataptr)
+            .assigne()
+            .name(memoryName)
+            .objectProperty(dataptr)
+            .add()
+            .number(op.argument)
+            .endLine();
+
+          break;
+        }
+
+        case OpKind.DEC_DATA: {
+          textGenerator
+            .newLine()
+            .name(memoryName)
+            .objectProperty(dataptr)
+            .assigne()
+            .name(memoryName)
+            .objectProperty(dataptr)
+            .subtract()
+            .number(op.argument)
+            .endLine();
+          break;
+        }
         // case OpKind.READ_STDIN:
         //   for (let i = 0; i < op.argument; i++) {
         //     memory[dataptr] = Number(prompt('enter value'));

@@ -83,6 +83,16 @@ const Names = {
   GlobalName,
   ReservedNames,
 
+  // [
+  getObjectPropertyOpenBracket(): Array<number> {
+    return [91];
+  },
+
+  // ]
+  getObjectPropertyCloseBracket(): Array<number> {
+    return [93];
+  },
+
   getName(name: string): Array<number> {
     return Array.from(tx.encode(name));
   }
