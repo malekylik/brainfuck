@@ -25,9 +25,10 @@ self.addEventListener('message', (e) => {
       const now = performance.now();
       console.log(`start at ${now}`);
 
+      // simpleinterp(ops);
       const compiledFunc = compile(ops, 'inF', 'outF');
 
-      compiledFunc();
+      console.log(JSON.stringify(compiledFunc()));
 
       const end = performance.now();
       console.log(`end at ${end}`);

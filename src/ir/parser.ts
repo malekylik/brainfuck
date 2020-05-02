@@ -47,6 +47,26 @@ function optimize_loop(ops: Array<Opcode>, loop_start: number): Array<Opcode> {
   return new_ops;
 }
 
+function optimize_range_update(ops: Array<Opcode>, dec_ptr_strt: number): Array<Opcode> {
+  const new_ops = [];
+
+  let dec_ptr = dec_ptr_strt;
+  while (
+    dec_ptr - 2 >= 0 &&
+    ops[dec_ptr - 0].kind === OpKind.LOOP_SET_TO_ZERO &&
+    ops[dec_ptr - 1].kind === OpKind.INC_PTR &&
+    ops[dec_ptr - 1].argument === 1)
+  {
+    dec_ptr -= 2;
+  }
+
+  if (dec_ptr_strt - dec_ptr > 3) {
+    new_ops.push(createOpcode(OpKind.RESET_DATA_RANGE, (dec_ptr_strt - dec_ptr) / 2));
+  }
+
+  return new_ops;
+}
+
 export function translate_program(tokens: Array<string>): Array<Opcode> {
   let pc = 0;
   let program_size = tokens.length;
@@ -110,9 +130,18 @@ export function translate_program(tokens: Array<string>): Array<Opcode> {
       case '>':
         kind = OpKind.INC_PTR;
         break;
-      case '<':
+      case '<': {
+        const optim = optimize_range_update(ops, ops.length - 1);
+
+        if (optim.length && optim[0].argument === num_repeats) {
+          ops = ops.slice(0, ops.length - (optim[0].argument * 2)).concat(optim);
+
+          continue;
+        }
+
         kind = OpKind.DEC_PTR;
         break;
+      }
       case '+':
         kind = OpKind.INC_DATA;
         break;

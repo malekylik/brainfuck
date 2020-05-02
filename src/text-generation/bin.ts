@@ -114,6 +114,11 @@ const ReservedNames = {
   getFor(): Array<number> {
     return [102, 111, 114];
   },
+
+  // return
+  getReturn(): Array<number> {
+    return [114, 101, 116, 117, 114, 110];
+  },
 };
 
 const Names = {

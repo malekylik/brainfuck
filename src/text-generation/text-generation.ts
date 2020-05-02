@@ -348,6 +348,14 @@ export class TextGenerator {
     return this.forGenerator.endFor();
   }
 
+  newOject(): TextGenerator {
+    return this.pushText(Bin.Punctuation.getCurclyOpenBracket().concat(Bin.Punctuation.getCurclyCloseBracket()));
+  }
+
+  return(): TextGenerator {
+    return this.pushText(Bin.Names.ReservedNames.getReturn());
+  }
+
   call<T>(funcName: string, args: Array<T> = []): TextGenerator {
     this.pushText(Bin.FunctionBin.getFunctionCall(Bin.Names.getName(funcName), args));
 
