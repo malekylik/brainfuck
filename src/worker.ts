@@ -2,7 +2,7 @@ import { parse_from_stream } from './utils/parser';
 import { translate_program } from '@ir/parser';
 import { simpleinterp } from '@interpratater/interpratater';
 import { compile } from '@compiler/js/compiler';
-import { text } from '../test/mandelbrot';
+import { text } from '../test/mandelbrot_mine';
 
 function inF(): string {
   return prompt('enter value');
@@ -28,9 +28,43 @@ self.addEventListener('message', (e) => {
 
       // simpleinterp(ops);
       const compiledFunc = compile(ops, 'inF', 'outF');
-      // const compiledFunc = Function(text);
+      const compiledFunc1 = Function(text);
 
-      console.log(JSON.stringify(compiledFunc()));
+      const res1: any = compiledFunc();
+
+      outF('\n'.charCodeAt(0));
+
+      // const res2: Array<number> = compiledFunc1();
+      // const res2: any = compiledFunc1();
+
+      // const it1: Iterable<number> = res1();
+      // const it2: Iterable<number> = res2();
+
+      // let v1 = it1.next();
+      // let idealIt2 = it2.next();
+
+      // let counter = 0;
+
+    // while (!v1.done && !idealIt2.done) {
+      // for (let i = 0; i < 1000; i++) {
+        // if (v1.value[i] !== idealIt2.value[i]) {
+      //       console.log(v1.value);
+      //       console.log(idealIt2.value);
+      //       console.log(i);
+      //       debugger;
+      //       break;
+      //     }
+      //   }
+
+      // counter += 1;
+
+      // if (counter === 87425) {
+      //   debugger;
+      // }
+
+      // v1 = it1.next();
+      // idealIt2 = it2.next();
+    // }
 
       const end = performance.now();
       console.log(`end at ${end}`);
@@ -74,3 +108,4 @@ self.addEventListener('message', (e) => {
 // >4 d-36 >5     --> 3845696
 // with (LOOP_SET_TO_ZERO, LOOP_MOVE_PTR, LOOP_MOVE_DATA) 31564.180000015767 = 31.5s
 // compiled to js 23954.94999998482 = 24s
+// SET_DATA; DATA_LOOP 15167 = 15s // TO-DO check isPure

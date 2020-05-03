@@ -14,6 +14,8 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
   const code = [];
   const offset_stack = [];
   let offset = 0;
+  let loop_data_offset = 0;
+  let loop_data_offsets = [];
   const generateNewName = (() => {
     let i = -1;
     return (depth: number) => {
@@ -24,6 +26,9 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
   const loop_depth = [];
   let current_loop_name = generateNewName(0);
 
+  code.push(
+    encode(`return function* () {\n`)
+  );
   code.push(
     encode(`const ${memoryName} = new Uint8Array(${30000});\n`)
   );
@@ -98,7 +103,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
             ); 
           } else {
             code.push(
-              encode(`for (let i = 0; i < ${op.argument}; i++) ${outF}(${memoryName}[${dataptr} + ${offset}]); // ${pc} \n`)
+              encode(`for (let i = 0; i < ${op.argument}; i++) { yield m; ${outF}(${memoryName}[${dataptr} + ${offset}]); } // ${pc} \n`)
             );
           }
 
@@ -123,6 +128,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
           code.push(
             encode(
               `while (${memoryName}[${dataptr} + ${offset}]) { // ${pc} \n` +
+                `yield m;` +
                 `${datanal}['${current_loop_name}'] = (1 + (${datanal}['${current_loop_name}'] || 0))\n` +
                 `${dataptr} += ${op.argument};\n}\n`
               )
@@ -154,7 +160,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
           );
 
           code.push(
-            encode(`while (${memoryName}[${dataptr} + ${offset}]) { // ${pc} \n`)
+            encode(`while (${memoryName}[${dataptr} + ${offset}]) { yield m; // ${pc} \n`)
           );
 
           code.push(
@@ -198,21 +204,74 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
           break;
         }
 
+        case OpKind.DATA_LOOP: {
+          loop_data_offset = offset;
+          loop_data_offsets.push(loop_data_offset);
+          code.push(
+            encode(`if (${memoryName}[${dataptr} + ${loop_data_offset}]) { // ${pc} DATA_LOOP \n`)
+          );
+
+          break;
+        }
+
+        case OpKind.DATA_LOOP_END: {
+          code.push(
+            encode(
+              `${memoryName}[${dataptr} + ${loop_data_offset}] = 0;\n` +
+              `} // ${pc} DATA_LOOP_END \n`
+            )
+          );
+
+          offset = loop_data_offsets.pop();
+
+          break;
+        }
+
+        case OpKind.DATA_LOOP_ADD: {
+          if (op.argument === 1) {
+            code.push(
+              encode(`${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}]; // ${pc} \n`)
+            );
+          } else {
+            code.push(
+              encode(`${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument}; // ${pc} \n`)
+            );
+          }
+
+          break;
+        }
+
+        case OpKind.DATA_LOOP_SUB: {
+          if (op.argument === 1) {
+            code.push(
+              encode(`${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}]; // ${pc} \n`)
+            );
+          } else {
+            code.push(
+              encode(`${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument}; // ${pc} \n`)
+            );
+          }
+
+          break;
+        }
+
         default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
       }
   
       pc++;
     }
+    
+    code.push(
+      encode(`return ${datanal};\n`)
+    );
 
   code.push(
-    encode(`return ${datanal};\n`)
+    encode(`}\n`)
   );
 
   const string = txd.decode(Uint8Array.from(code.flat()));
 
-  console.log(string);
-
-  return new Function(string) as () => object;
+  return new Function(string) as () => Array<number>;
 }
 
 function compile_prod(ops: Array<Opcode>, inF: string, outF: string): CompiledFunc {
@@ -221,6 +280,8 @@ function compile_prod(ops: Array<Opcode>, inF: string, outF: string): CompiledFu
   const code = [];
   const offset_stack = [];
   let offset = 0;
+  let loop_data_offset = 0;
+  let loop_data_offsets = [];
 
   code.push(
     encode(`const ${memoryName} = new Uint8Array(${30000});\n`)
@@ -228,14 +289,6 @@ function compile_prod(ops: Array<Opcode>, inF: string, outF: string): CompiledFu
   code.push(
     encode(`let ${dataptr} = 0;\n`)
   );
-
-  // to do
-  // a = 0
-  // a += 1
-  // to do
-  // a +-= 1
-  // a +-= 1
-  // => a += 2
 
     let pc = 0;
     while (pc < ops.length) {
@@ -379,6 +432,58 @@ function compile_prod(ops: Array<Opcode>, inF: string, outF: string): CompiledFu
           break;
         }
 
+        case OpKind.DATA_LOOP: {
+          loop_data_offset = offset;
+          loop_data_offsets.push(loop_data_offset);
+          code.push(
+            encode(`if (${memoryName}[${dataptr} + ${loop_data_offset}]) {\n`)
+          );
+
+          break;
+        }
+
+        case OpKind.DATA_LOOP_END: {
+          code.push(
+            encode(
+              `${memoryName}[${dataptr} + ${loop_data_offset}] = 0;\n` +
+              `}\n`
+            )
+          );
+
+          offset = loop_data_offsets.pop();
+          loop_data_offset = loop_data_offsets[loop_data_offsets.length - 1];
+
+          break;
+        }
+
+        case OpKind.DATA_LOOP_ADD: {
+          if (op.argument === 1) {
+            code.push(
+              encode(`${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}];\n`)
+            );
+          } else {
+            code.push(
+              encode(`${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument};\n`)
+            );
+          }
+
+          break;
+        }
+
+        case OpKind.DATA_LOOP_SUB: {
+          if (op.argument === 1) {
+            code.push(
+              encode(`${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}];\n`)
+            );
+          } else {
+            code.push(
+              encode(`${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument};\n`)
+            );
+          }
+
+          break;
+        }
+
         default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
       }
   
@@ -387,12 +492,9 @@ function compile_prod(ops: Array<Opcode>, inF: string, outF: string): CompiledFu
 
   const string = txd.decode(Uint8Array.from(code.flat()));
 
-  // console.log(string);
-
   return new Function(string) as CompiledFunc;
 }
 
 const compile = __DEV__ ? compile_debug : compile_prod;
-// const compile = compile_prod;
 
 export { compile };
