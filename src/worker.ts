@@ -2,6 +2,7 @@ import { parse_from_stream } from './utils/parser';
 import { translate_program } from '@ir/parser';
 import { simpleinterp } from '@interpratater/interpratater';
 import { compile } from '@compiler/js/compiler';
+import { text } from '../test/mandelbrot';
 
 function inF(): string {
   return prompt('enter value');
@@ -27,6 +28,7 @@ self.addEventListener('message', (e) => {
 
       // simpleinterp(ops);
       const compiledFunc = compile(ops, 'inF', 'outF');
+      // const compiledFunc = Function(text);
 
       console.log(JSON.stringify(compiledFunc()));
 
