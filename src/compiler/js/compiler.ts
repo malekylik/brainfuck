@@ -190,6 +190,14 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
           break;
         }
 
+        case OpKind.SET_DATA: {
+          code.push(
+            encode(`${memoryName}[${dataptr} + ${offset}] = ${op.argument}; // ${pc} \n`)
+          );
+
+          break;
+        }
+
         default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
       }
   
@@ -201,6 +209,8 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
   );
 
   const string = txd.decode(Uint8Array.from(code.flat()));
+
+  console.log(string);
 
   return new Function(string) as () => object;
 }
@@ -361,6 +371,14 @@ function compile_prod(ops: Array<Opcode>, inF: string, outF: string): CompiledFu
           break;
         }
 
+        case OpKind.SET_DATA: {
+          code.push(
+            encode(`${memoryName}[${dataptr} + ${offset}] = ${op.argument};\n`)
+          );
+
+          break;
+        }
+
         default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
       }
   
@@ -369,9 +387,12 @@ function compile_prod(ops: Array<Opcode>, inF: string, outF: string): CompiledFu
 
   const string = txd.decode(Uint8Array.from(code.flat()));
 
+  // console.log(string);
+
   return new Function(string) as CompiledFunc;
 }
 
 const compile = __DEV__ ? compile_debug : compile_prod;
+// const compile = compile_prod;
 
 export { compile };

@@ -173,9 +173,19 @@ export function translate_program(tokens: Array<string>): Array<Opcode> {
         kind = OpKind.DEC_PTR;
         break;
       }
-      case '+':
+      case '+': {
+        const prev_op = ops.length > 0 ? ops[ops.length - 1] : null;
+
+        if (prev_op && prev_op.kind === OpKind.LOOP_SET_TO_ZERO) {
+          prev_op.kind = OpKind.SET_DATA;
+          prev_op.argument = num_repeats;
+
+          continue;
+        }
+
         kind = OpKind.INC_DATA;
         break;
+      }
       case '-':
         kind = OpKind.DEC_DATA;
         break;
