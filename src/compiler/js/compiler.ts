@@ -382,8 +382,10 @@ function compile_prod(ops: Array<Opcode>, inF: string, outF: string): CompiledFu
         case OpKind.LOOP_MOVE_DATA: {
           code.push(
             encode(
+              `if (${dataptr} + ${offset + op.argument} >= 0) {\n` +
               `${memoryName}[${dataptr} + ${offset + op.argument}] += ${memoryName}[${dataptr} + ${offset}];\n` +
-              `${memoryName}[${dataptr} + ${offset}] = 0;\n`
+              `${memoryName}[${dataptr} + ${offset}] = 0;\n` +
+              `}\n`
             )
           );
 
@@ -495,6 +497,7 @@ function compile_prod(ops: Array<Opcode>, inF: string, outF: string): CompiledFu
   return new Function(string) as CompiledFunc;
 }
 
-const compile = __DEV__ ? compile_debug : compile_prod;
+// const compile = __DEV__ ? compile_debug : compile_prod;
+const compile = compile_prod;
 
 export { compile };

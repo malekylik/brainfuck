@@ -1,14 +1,16 @@
 import { parse_from_stream } from './utils/parser';
 import { translate_program } from '@ir/parser';
-import { simpleinterp } from '@interpratater/interpratater';
-import { compile } from '@compiler/js/compiler';
-import { text } from '../test/mandelbrot_mine';
+// import { simpleinterp } from '@interpratater/interpratater';
+// import { compile } from '@compiler/js/compiler';
+import { compile } from '@compiler/web-assembler/compiler';
+// import { text } from '../test/mandelbrot_mine';
 
 function inF(): string {
   return prompt('enter value');
 }
 
-function outF(v: number): void {
+function outF(v: number, ...args: Array<number>): void {
+  // console.log('outF', v, args);
   self.postMessage({ type: 'out', value: String.fromCharCode(v) });
 }
 
@@ -23,16 +25,47 @@ self.addEventListener('message', (e) => {
 
       const ops = translate_program(tokens);
 
-      const now = performance.now();
-      console.log(`start at ${now}`);
 
+      // const now = performance.now();
+      // console.log(`start at ${now}`);
       // simpleinterp(ops);
-      const compiledFunc = compile(ops, 'inF', 'outF');
-      const compiledFunc1 = Function(text);
 
-      const res1: any = compiledFunc();
+      // const end = performance.now();
+      // console.log(`end at ${end}`);
+      // console.log(`done in: ${end - now}`);
 
-      outF('\n'.charCodeAt(0));
+
+
+      // const compiledFunc = compile(ops, 'inF', 'outF');
+
+      // const now = performance.now();
+      // console.log(`start at ${now}`);
+
+      // compiledFunc();
+      // // const compiledFunc1 = Function(text)
+
+      // const end = performance.now();
+      // console.log(`end at ${end}`);
+      // console.log(`done in: ${end - now}`);
+
+
+      compile(ops, inF, outF).then(({ module, memory }) => {
+        const now = performance.now();
+        console.log(`start at ${now}`);
+
+        // console.log(module.instance.exports.run(10));
+        console.log(module.instance.exports.run());
+
+        console.log('memory', memory);
+
+        const end = performance.now();
+        console.log(`end at ${end}`);
+        console.log(`done in: ${end - now}`);
+      }).catch(e => console.log(e));
+
+      // const res1: any = compiledFunc();
+
+      // outF('\n'.charCodeAt(0));
 
       // const res2: Array<number> = compiledFunc1();
       // const res2: any = compiledFunc1();
@@ -65,10 +98,6 @@ self.addEventListener('message', (e) => {
       // v1 = it1.next();
       // idealIt2 = it2.next();
     // }
-
-      const end = performance.now();
-      console.log(`end at ${end}`);
-      console.log(`done in: ${end - now}`);
 
       self.postMessage({ type: 'end' });
     }

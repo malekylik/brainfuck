@@ -13,6 +13,7 @@ const config = {
   },
   devServer: {
     hot: false,
+    hotOnly: true,
     contentBase: './dist',
     historyApiFallback: {
       rewrites: [
