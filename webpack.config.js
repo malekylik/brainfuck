@@ -5,7 +5,7 @@ const { DefinePlugin } = require('webpack');
 
 const config = {
   entry: {
-    main: path.resolve(__dirname, 'src', 'index.ts'),
+    main: path.resolve(__dirname, 'src', 'index.tsx'),
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -34,11 +34,12 @@ const config = {
   module: {
     rules: [
       {
-        test: /\.ts?$/,
+        test: /(\.ts?$|\.tsx?$)/,
         exclude: /(node_modules|bower_components)/,
         loader: 'babel-loader',
         options: {
-          presets: ['@babel/preset-env', '@babel/preset-typescript']
+          presets: ['@babel/preset-env', '@babel/preset-react', '@babel/preset-typescript'],
+          plugins: ['@babel/plugin-transform-react-jsx'],
         }
       }
     ]
