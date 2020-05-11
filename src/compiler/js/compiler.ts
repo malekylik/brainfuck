@@ -1,6 +1,6 @@
-import { OpKind } from '@ir/opcode-kinds';
-import { Opcode } from '@ir/opcode';
-import { opKindToChar } from '@ir/utils';
+import { OpKind } from 'ir/opcode-kinds';
+import { Opcode } from 'ir/opcode';
+import { opKindToChar } from 'ir/utils';
 
 const txd = new TextDecoder();
 const txe = new TextEncoder();
@@ -497,7 +497,6 @@ function compile_prod(ops: Array<Opcode>, inF: string, outF: string): CompiledFu
   return new Function(string) as CompiledFunc;
 }
 
-// const compile = __DEV__ ? compile_debug : compile_prod;
-const compile = compile_prod;
+const compile = __DEV__ ? compile_debug : compile_prod;
 
 export { compile };

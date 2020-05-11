@@ -65,6 +65,7 @@ const config = {
       "components": path.resolve(__dirname, 'src', 'components'),
       "consts": path.resolve(__dirname, 'src', 'consts'),
       "types": path.resolve(__dirname, 'src', 'types'),
+      "utils": path.resolve(__dirname, 'src', 'utils'),
     },
     extensions: ['.js', '.jsx', '.ts', '.tsx']
   }
@@ -112,6 +113,7 @@ const workerConfig = {
       "components": path.resolve(__dirname, 'src', 'components'),
       "consts": path.resolve(__dirname, 'src', 'consts'),
       "types": path.resolve(__dirname, 'src', 'types'),
+      "utils": path.resolve(__dirname, 'src', 'utils'),
     }
   }
 };

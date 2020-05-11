@@ -2,13 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 
 import { mandelbrot } from 'consts/programs';
 import { WorkerEvent } from 'consts/worker';
+import { BrainfuckMode } from 'consts/mode';
 import { WorkerMessage } from 'types/worker';
+import { converMillisecondToString } from 'utils/time';
 
 export default function App() {
   const [bfSource, changeBFSource] = useState(mandelbrot);
   const [output, changeOutput] = useState('');
   const [endTime, setEndTime] = useState('???');
   const [compileTime, setCompileTime] = useState('???');
+  const [currentMode, setCurrentMode] = useState(BrainfuckMode.CompileWebAssembly);
   const workerRef = useRef<Worker>(null);
   const outputRef = useRef(null);
 
@@ -40,15 +43,8 @@ export default function App() {
           }
 
           if (message.type === WorkerEvent.end) {
-            console.log('time', message.data.time);
-
-            const runTime = message.data.time.runTime | 0;
-
-            setEndTime(`${(runTime / 1000) | 0}s ${(runTime - ((runTime / 1000) | 0) * 1000) }ms`);
-
-            const compileTime = message.data.time.compileTime | 0;
-
-            setCompileTime(`${(compileTime / 1000) | 0}s ${(compileTime - ((compileTime / 1000) | 0) * 1000) }ms`);
+            setEndTime(converMillisecondToString(message.data.time.runTime));
+            setCompileTime(converMillisecondToString(message.data.time.compileTime));
           }
         }
 
@@ -75,6 +71,14 @@ export default function App() {
         <p>
           <span>end time: </span>
           <span>{endTime}</span>
+        </p>
+      </div>
+
+      <div>
+        <span>Mode:</span>
+        <p>
+          <label>WebAssembly</label>
+          <input type='checkbox' checked={currentMode === BrainfuckMode.CompileWebAssembly} onChange={() => setCurrentMode(BrainfuckMode.CompileWebAssembly)} />
         </p>
       </div>
     </div>

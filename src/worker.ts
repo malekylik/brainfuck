@@ -35,13 +35,11 @@ self.addEventListener('message', (e) => {
         now = performance.now();
         console.log(`start at ${now}`);
 
-        console.log(module.run());
+        module.run();
 
         console.log('memory', memory);
 
         const end = performance.now();
-        console.log(`end at ${end}`);
-        console.log(`done in: ${end - now}`);
 
         time.runTime = end - now;
 
