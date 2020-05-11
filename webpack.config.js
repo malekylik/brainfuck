@@ -59,7 +59,7 @@ const config = {
   resolve: {
     alias: {
       'ir': path.resolve(__dirname, 'src', 'ir'),
-      'interpratater': path.resolve(__dirname, 'src', 'interpratater'),
+      'interpreter': path.resolve(__dirname, 'src', 'interpreter'),
       'compiler': path.resolve(__dirname, 'src', 'compiler'),
       "text-generation": path.resolve(__dirname, 'src', 'text-generation'),
       "components": path.resolve(__dirname, 'src', 'components'),
@@ -107,7 +107,7 @@ const workerConfig = {
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
     alias: {
       'ir': path.resolve(__dirname, 'src', 'ir'),
-      'interpratater': path.resolve(__dirname, 'src', 'interpratater'),
+      'interpreter': path.resolve(__dirname, 'src', 'interpreter'),
       'compiler': path.resolve(__dirname, 'src', 'compiler'),
       "text-generation": path.resolve(__dirname, 'src', 'text-generation'),
       "components": path.resolve(__dirname, 'src', 'components'),

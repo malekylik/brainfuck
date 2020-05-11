@@ -1,5 +1,6 @@
 import { parse_from_stream } from './utils/parser';
 import { translate_program } from 'ir/parser';
+import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { compile as compileJS } from 'compiler/js/compiler';
 import { compile as compileWebAssembly } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
@@ -35,45 +36,52 @@ self.addEventListener('message', (e) => {
 
     if (message.type === WorkerEvent.start) {
       const { mode, src } = message.data;
-
-      let compile = null;
       const tokens = parse_from_stream(src);
-
-      const ops = translate_program(tokens);
-
       const time = {
         compileTime: 0,
         runTime: 0,
       };
+      let modulePromise = null;
 
       let now = performance.now();
 
-      switch (mode) {
-        case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
-        case BrainfuckMode.CompileWebAssembly: compile = compileWebAssembly; break;
+      if (mode === BrainfuckMode.InterpretateBase) {
+        modulePromise = baseInterpret(tokens, inF, outF);
       }
 
-      compile(ops, inF, outF).then(({ module, memory }) => {
-        time.compileTime = performance.now() - now;
+      if (mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
+        const ops = translate_program(tokens);
+        let compile = null;
 
-        now = performance.now();
-        console.log(`start at ${now}`);
+        switch (mode) {
+          case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
+          case BrainfuckMode.CompileWebAssembly: compile = compileWebAssembly; break;
+        }
 
-        module.run();
+        modulePromise = compile(ops, inF, outF);
+      }
 
-        self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
-        stringToSend = '';
+      modulePromise.then(({ module, memory }) => {
+          time.compileTime = performance.now() - now;
 
-        console.log('memory', memory);
+          now = performance.now();
+          console.log(`start at ${now}`);
 
-        const end = performance.now();
+          module.run();
 
-        time.runTime = end - now;
+          self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
+          stringToSend = '';
 
-        console.log(time);
+          console.log('memory', memory);
 
-        self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
-      }).catch(e => console.log(e));
+          const end = performance.now();
+
+          console.log(`end at ${end}`);
+
+          time.runTime = end - now;
+
+          self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
+        }).catch(e => console.log(e));
     }
 });
 

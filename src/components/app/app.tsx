@@ -91,6 +91,10 @@ export default function App() {
       <div>
         <span>Mode:</span>
         <p>
+          <label>Base Interpreter</label>
+          <input type='checkbox' checked={currentMode === BrainfuckMode.InterpretateBase} onChange={() => setCurrentMode(BrainfuckMode.InterpretateBase)} />
+        </p>
+        <p>
           <label>JavaScript</label>
           <input type='checkbox' checked={currentMode === BrainfuckMode.CompileJavaScript} onChange={() => setCurrentMode(BrainfuckMode.CompileJavaScript)} />
         </p>

@@ -1,4 +1,5 @@
 export enum BrainfuckMode {
-  CompileJavaScript = 0,
-  CompileWebAssembly = 1,
+  InterpretateBase = 0,
+  CompileJavaScript = 1,
+  CompileWebAssembly = 2,
 }
