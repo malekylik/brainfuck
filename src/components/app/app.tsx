@@ -5,12 +5,14 @@ import { WorkerEvent } from 'consts/worker';
 import { BrainfuckMode } from 'consts/mode';
 import { WorkerMessage } from 'types/worker';
 import { converMillisecondToString } from 'utils/time';
+import { modeToString } from 'utils/mode';
 
 export default function App() {
   const [bfSource, changeBFSource] = useState(mandelbrot);
   const [output, changeOutput] = useState('');
   const [endTime, setEndTime] = useState('???');
   const [compileTime, setCompileTime] = useState('???');
+  const [statMode, setStatMode] = useState('???');
   const [currentMode, setCurrentMode] = useState(BrainfuckMode.CompileWebAssembly);
   const workerRef = useRef<Worker>(null);
   const outputRef = useRef(null);
@@ -24,7 +26,7 @@ export default function App() {
   }
 
   function runHandler() {
-    workerRef.current.postMessage({ type: WorkerEvent.start, src: bfSource });
+    workerRef.current.postMessage({ type: WorkerEvent.start, data: { src: bfSource, mode: currentMode } });
   }
 
   useEffect(() => {
@@ -45,6 +47,7 @@ export default function App() {
           if (message.type === WorkerEvent.end) {
             setEndTime(converMillisecondToString(message.data.time.runTime));
             setCompileTime(converMillisecondToString(message.data.time.compileTime));
+            setStatMode(modeToString(message.data.mode));
           }
         }
 
@@ -64,6 +67,11 @@ export default function App() {
 
       <div>
         <p>
+          <span>mode: </span>
+          <span>{statMode}</span>
+        </p>
+
+        <p>
           <span>compile time: </span>
           <span>{compileTime}</span>
         </p>
@@ -76,6 +84,10 @@ export default function App() {
 
       <div>
         <span>Mode:</span>
+        <p>
+          <label>JavaScript</label>
+          <input type='checkbox' checked={currentMode === BrainfuckMode.CompileJavaScript} onChange={() => setCurrentMode(BrainfuckMode.CompileJavaScript)} />
+        </p>
         <p>
           <label>WebAssembly</label>
           <input type='checkbox' checked={currentMode === BrainfuckMode.CompileWebAssembly} onChange={() => setCurrentMode(BrainfuckMode.CompileWebAssembly)} />

@@ -1,7 +1,10 @@
 import { parse_from_stream } from './utils/parser';
 import { translate_program } from 'ir/parser';
-import { compile } from 'compiler/web-assembler/compiler';
+import { compile as compileJS } from 'compiler/js/compiler';
+import { compile as compileWebAssembly } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
+import { WorkerMessage } from 'types/worker';
+import { BrainfuckMode } from 'consts/mode';
 
 function inF(): string {
   return prompt('enter value');
@@ -11,13 +14,16 @@ function outF(v: number): void {
   self.postMessage({ type: WorkerEvent.out, data: { value: String.fromCharCode(v) } });
 }
 
-(self as any).inF = inF;
-(self as any).outF = outF;
+(self as any)[inF.name] = inF;
+(self as any)[outF.name] = outF;
 
 self.addEventListener('message', (e) => {
-    const { type, src } = e.data;
+    const message: WorkerMessage = e.data;
 
-    if (type === WorkerEvent.start) {
+    if (message.type === WorkerEvent.start) {
+      const { mode, src } = message.data;
+
+      let compile = null;
       const tokens = parse_from_stream(src);
 
       const ops = translate_program(tokens);
@@ -28,6 +34,11 @@ self.addEventListener('message', (e) => {
       };
 
       let now = performance.now();
+
+      switch (mode) {
+        case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
+        case BrainfuckMode.CompileWebAssembly: compile = compileWebAssembly; break;
+      }
 
       compile(ops, inF, outF).then(({ module, memory }) => {
         time.compileTime = performance.now() - now;
@@ -43,7 +54,9 @@ self.addEventListener('message', (e) => {
 
         time.runTime = end - now;
 
-        self.postMessage({ type: WorkerEvent.end, data: { time } });
+        console.log(time);
+
+        self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
       }).catch(e => console.log(e));
     }
 });

@@ -1,7 +1,12 @@
 import { WorkerEvent } from 'consts/worker';
+import { BrainfuckMode } from 'consts/mode';
 
 export type WorkerMessageStart = {
   type: WorkerEvent.start,
+  data: {
+    src: string,
+    mode: BrainfuckMode,
+  }
 };
 
 export type WorkerMessageOut = {
@@ -17,7 +22,8 @@ export type WorkerMessageEnd = {
     time: {
       runTime: number;
       compileTime: number;
-    }
+    },
+    mode: BrainfuckMode,
   }
 };
 

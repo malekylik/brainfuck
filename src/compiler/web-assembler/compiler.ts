@@ -1,11 +1,11 @@
 import { OpKind } from 'ir/opcode-kinds';
 import { Opcode } from 'ir/opcode';
 import { opKindToChar } from 'ir/utils';
-import { CompiledModule } from 'types/compiler';
+import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
 import { emitter, Valtype, Opcodes } from './emitter';
 import { unsignedLEB128, signedLEB128 } from './encoding';
 
-function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) => void): Promise<CompiledModule> {
+function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
   const code: Array<number> = [];
   const offset_stack = [];
   let offset = 0;

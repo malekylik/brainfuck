@@ -1,28 +1,42 @@
 import { OpKind } from 'ir/opcode-kinds';
 import { Opcode } from 'ir/opcode';
 import { opKindToChar } from 'ir/utils';
-import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
 
 const txd = new TextDecoder();
 const txe = new TextEncoder();
 
 const encode = (code: string) => Array.from(txe.encode(code));
 
-function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
-  const memoryName = '__m__';
+function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledFunc {
+  const memoryName = 'm';
   const dataptr = 'p';
-  const inFName = inF.name;
-  const outFName = outF.name;
+  const datanal = 'performance';
   const code = [];
   const offset_stack = [];
   let offset = 0;
   let loop_data_offset = 0;
   let loop_data_offsets = [];
-
-  (self as any)[memoryName] = new Uint8Array(30000);
+  const generateNewName = (() => {
+    let i = -1;
+    return (depth: number) => {
+      i++;
+      return `${i}_${depth}`;
+    }
+  })();
+  const loop_depth = [];
+  let current_loop_name = generateNewName(0);
 
   code.push(
+    encode(`return function* () {\n`)
+  );
+  code.push(
+    encode(`const ${memoryName} = new Uint8Array(${30000});\n`)
+  );
+  code.push(
     encode(`let ${dataptr} = 0;\n`)
+  );
+  code.push(
+    encode(`const ${datanal} = {};\n`)
   );
 
     let pc = 0;
@@ -32,7 +46,7 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
       switch (op.kind) {
         case OpKind.INC_PTR: {
           code.push(
-            encode(`${dataptr} += ${op.argument};\n`)
+            encode(`${dataptr} += ${op.argument}; // ${pc}\n`)
           );
 
           break;
@@ -40,7 +54,7 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
         case OpKind.DEC_PTR: {
           code.push(
-            encode(`${dataptr} -= ${op.argument};\n`)
+            encode(`${dataptr} -= ${op.argument}; // ${pc}\n`)
           );
 
           break;
@@ -60,7 +74,7 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
         case OpKind.INC_DATA: {
           code.push(
-            encode(`${memoryName}[${dataptr} + ${offset}] += ${op.argument};\n`)
+            encode(`${memoryName}[${dataptr} + ${offset}] += ${op.argument}; // ${pc} \n`)
           );
 
           break;
@@ -68,7 +82,7 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
         case OpKind.DEC_DATA: {
           code.push(
-            encode(`${memoryName}[${dataptr} + ${offset}] -= ${op.argument};\n`)
+            encode(`${memoryName}[${dataptr} + ${offset}] -= ${op.argument}; // ${pc}\n`)
           );
 
           break;
@@ -76,7 +90,7 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
         case OpKind.READ_STDIN: {
           code.push(
-            encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${dataptr} + ${offset}] = ${inFName}();\n`)
+            encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${dataptr} + ${offset}] = ${inF}(); // ${pc} \n`)
           );
 
           break;
@@ -85,11 +99,11 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
         case OpKind.WRITE_STDOUT: {
           if (op.argument < 2) {
             code.push(
-              encode(`${outFName}(${memoryName}[${dataptr} + ${offset}]);\n`)
+              encode(`${outF}(${memoryName}[${dataptr} + ${offset}]); // ${pc} \n`)
             ); 
           } else {
             code.push(
-              encode(`for (let i = 0; i < ${op.argument}; i++) ${outFName}(${memoryName}[${dataptr} + ${offset}]);\n`)
+              encode(`for (let i = 0; i < ${op.argument}; i++) { yield m; ${outF}(${memoryName}[${dataptr} + ${offset}]); } // ${pc} \n`)
             );
           }
 
@@ -98,30 +112,37 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
         case OpKind.LOOP_SET_TO_ZERO: {
           code.push(
-            encode(`${memoryName}[${dataptr} + ${offset}] = 0;\n`)
+            encode(`${memoryName}[${dataptr} + ${offset}] = 0; // ${pc} \n`)
           );
 
           break;
         }
 
         case OpKind.LOOP_MOVE_PTR: {
+          loop_depth.push(current_loop_name);
+          current_loop_name = generateNewName(loop_depth.length);
+          code.push(
+            encode(`// ${current_loop_name}\n`)
+          );
+
           code.push(
             encode(
-              `while (${memoryName}[${dataptr} + ${offset}]) {\n` +
+              `while (${memoryName}[${dataptr} + ${offset}]) { // ${pc} \n` +
+                `yield m;` +
+                `${datanal}['${current_loop_name}'] = (1 + (${datanal}['${current_loop_name}'] || 0))\n` +
                 `${dataptr} += ${op.argument};\n}\n`
               )
           );
 
+          loop_depth.pop();
+
           break;
         }
         case OpKind.LOOP_MOVE_DATA: {
-          // TO_DO check why this degradate performance in chrome
           code.push(
             encode(
-              // `if (${dataptr} + ${offset + op.argument} >= 0) {\n` +
-              `${memoryName}[${dataptr} + ${offset + op.argument}] += ${memoryName}[${dataptr} + ${offset}];\n` +
-              `${memoryName}[${dataptr} + ${offset}] = 0;\n`
-              // `}\n`
+              `${memoryName}[${dataptr} + ${offset + op.argument}] += ${memoryName}[${dataptr} + ${offset}]; // ${pc} \n` +
+              `${memoryName}[${dataptr} + ${offset}] = 0; // ${pc} \n`
             )
           );
 
@@ -131,8 +152,19 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
         case OpKind.JUMP_IF_DATA_ZERO: {
           offset_stack.push(offset);
 
+          loop_depth.push(current_loop_name);
+          current_loop_name = generateNewName(loop_depth.length);
+
           code.push(
-            encode(`while (${memoryName}[${dataptr} + ${offset}]) {\n`)
+            encode(`// ${current_loop_name}\n`)
+          );
+
+          code.push(
+            encode(`while (${memoryName}[${dataptr} + ${offset}]) { yield m; // ${pc} \n`)
+          );
+
+          code.push(
+            encode(`${datanal}['${current_loop_name}'] = (1 + (${datanal}['${current_loop_name}'] || 0))\n`)
           );
 
           break;
@@ -145,6 +177,8 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
           offset = offset_stack.pop();
 
+          loop_depth.pop();
+
           break;
         }
 
@@ -156,7 +190,7 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
           }
 
           code.push(
-            encode(`${0};\n`)
+            encode(`${0}; // ${pc} \n`)
           );
 
           break;
@@ -164,7 +198,7 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
         case OpKind.SET_DATA: {
           code.push(
-            encode(`${memoryName}[${dataptr} + ${offset}] = ${op.argument};\n`)
+            encode(`${memoryName}[${dataptr} + ${offset}] = ${op.argument}; // ${pc} \n`)
           );
 
           break;
@@ -174,7 +208,7 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
           loop_data_offset = offset;
           loop_data_offsets.push(loop_data_offset);
           code.push(
-            encode(`if (${memoryName}[${dataptr} + ${loop_data_offset}]) {\n`)
+            encode(`if (${memoryName}[${dataptr} + ${loop_data_offset}]) { // ${pc} DATA_LOOP \n`)
           );
 
           break;
@@ -184,12 +218,11 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
           code.push(
             encode(
               `${memoryName}[${dataptr} + ${loop_data_offset}] = 0;\n` +
-              `}\n`
+              `} // ${pc} DATA_LOOP_END \n`
             )
           );
 
           offset = loop_data_offsets.pop();
-          loop_data_offset = loop_data_offsets[loop_data_offsets.length - 1];
 
           break;
         }
@@ -197,11 +230,11 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
         case OpKind.DATA_LOOP_ADD: {
           if (op.argument === 1) {
             code.push(
-              encode(`${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}];\n`)
+              encode(`${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}]; // ${pc} \n`)
             );
           } else {
             code.push(
-              encode(`${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument};\n`)
+              encode(`${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument}; // ${pc} \n`)
             );
           }
 
@@ -211,11 +244,11 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
         case OpKind.DATA_LOOP_SUB: {
           if (op.argument === 1) {
             code.push(
-              encode(`${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}];\n`)
+              encode(`${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}]; // ${pc} \n`)
             );
           } else {
             code.push(
-              encode(`${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument};\n`)
+              encode(`${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument}; // ${pc} \n`)
             );
           }
 
@@ -227,14 +260,18 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
   
       pc++;
     }
+    
+    code.push(
+      encode(`return ${datanal};\n`)
+    );
+
+  code.push(
+    encode(`}\n`)
+  );
 
   const string = txd.decode(Uint8Array.from(code.flat()));
-  const module = new Function(string);
 
-  return Promise.resolve({
-    module: { run: () => { module(); } },
-    memory: (self as any)[memoryName]
-  });
+  return new Function(string) as () => Array<number>;
 }
 
-export { compile_prod as compile };
+export { compile_debug as compile };
