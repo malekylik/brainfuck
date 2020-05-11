@@ -8,8 +8,6 @@ import { WorkerMessage } from 'types/worker';
 import { converMillisecondToString } from 'utils/time';
 import { modeToString } from 'utils/mode';
 
-const time = {};
-
 export default function App() {
   const [bfSource, changeBFSource] = useState(mandelbrot);
   const [output, changeOutput] = useState('');
@@ -46,14 +44,6 @@ export default function App() {
           const message: WorkerMessage = e.data;
 
           if (message.type === WorkerEvent.out) {
-            const now = performance.now() / 1000 | 0;
-
-            if (now in time) {
-              (time as any)[now] += 1;
-            } else {
-              (time as any)[now] = 1;
-            }
-
             changeOutput(outputRef.current.value + message.data.value);
           }
 
@@ -64,8 +54,6 @@ export default function App() {
               setStatMode(modeToString(message.data.mode));
               setIsRunning(false);
             });
-
-            console.log(time);
           }
         }
 

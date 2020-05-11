@@ -6,12 +6,25 @@ import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
 import { BrainfuckMode } from 'consts/mode';
 
+let prevFrame = 0;
+let lastFrame = 0;
+let stringToSend = '';
+
 function inF(): string {
   return prompt('enter value');
 }
 
 function outF(v: number): void {
-  self.postMessage({ type: WorkerEvent.out, data: { value: String.fromCharCode(v) } });
+  lastFrame = (performance.now() / 16) | 0;
+
+  if (prevFrame !== lastFrame) {
+    self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } });
+
+    prevFrame = lastFrame;
+    stringToSend = String.fromCharCode(v) ?? '';
+  } else {
+    stringToSend = stringToSend + String.fromCharCode(v);
+  }
 }
 
 (self as any)[inF.name] = inF;
@@ -47,6 +60,9 @@ self.addEventListener('message', (e) => {
         console.log(`start at ${now}`);
 
         module.run();
+
+        self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
+        stringToSend = '';
 
         console.log('memory', memory);
 
