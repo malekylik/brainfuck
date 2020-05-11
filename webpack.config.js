@@ -58,11 +58,14 @@ const config = {
   },
   resolve: {
     alias: {
-      memory: path.resolve(__dirname, 'src/memory'),
-      utils: path.resolve(__dirname, 'src/utils'),
-      render: path.resolve(__dirname, 'src/render'),
+      '@ir': path.resolve(__dirname, 'src', 'ir'),
+      '@interpratater': path.resolve(__dirname, 'src', 'interpratater'),
+      '@compiler': path.resolve(__dirname, 'src', 'compiler'),
+      "@text-generation": path.resolve(__dirname, 'src', 'text-generation'),
+      "@components": path.resolve(__dirname, 'src', 'components'),
+      "@consts": path.resolve(__dirname, 'src', 'consts'),
     },
-    extensions: ['.js', '.ts']
+    extensions: ['.js', '.jsx', '.ts', '.tsx']
   }
 };
 
@@ -99,12 +102,14 @@ const workerConfig = {
     ]
   },
   resolve: {
-    extensions: ['.js', '.ts'],
+    extensions: ['.js', '.jsx', '.ts', '.tsx'],
     alias: {
       '@ir': path.resolve(__dirname, 'src', 'ir'),
       '@interpratater': path.resolve(__dirname, 'src', 'interpratater'),
       '@compiler': path.resolve(__dirname, 'src', 'compiler'),
       "@text-generation": path.resolve(__dirname, 'src', 'text-generation'),
+      "@components": path.resolve(__dirname, 'src', 'components'),
+      "@consts": path.resolve(__dirname, 'src', 'consts'),
     }
   }
 };
