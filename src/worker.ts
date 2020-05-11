@@ -94,5 +94,5 @@ self.addEventListener('message', (e) => {
 // <1 d1 >3       --> 4689518
 // >4 d-36 >5     --> 3845696
 // with (LOOP_SET_TO_ZERO, LOOP_MOVE_PTR, LOOP_MOVE_DATA) 31564.180000015767 = 31.5s
-
+// {2: 516, 3: 812, 4: 1074, 5: 1090, 6: 1091, 7: 1120, 8: 537}
 

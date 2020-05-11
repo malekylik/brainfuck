@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 
 import { mandelbrot } from 'consts/programs';
 import { WorkerEvent } from 'consts/worker';
@@ -7,6 +8,8 @@ import { WorkerMessage } from 'types/worker';
 import { converMillisecondToString } from 'utils/time';
 import { modeToString } from 'utils/mode';
 
+const time = {};
+
 export default function App() {
   const [bfSource, changeBFSource] = useState(mandelbrot);
   const [output, changeOutput] = useState('');
@@ -14,6 +17,7 @@ export default function App() {
   const [compileTime, setCompileTime] = useState('???');
   const [statMode, setStatMode] = useState('???');
   const [currentMode, setCurrentMode] = useState(BrainfuckMode.CompileWebAssembly);
+  const [isRunning, setIsRunning] = useState(false);
   const workerRef = useRef<Worker>(null);
   const outputRef = useRef(null);
 
@@ -27,6 +31,7 @@ export default function App() {
 
   function runHandler() {
     workerRef.current.postMessage({ type: WorkerEvent.start, data: { src: bfSource, mode: currentMode } });
+    setIsRunning(true);
   }
 
   useEffect(() => {
@@ -41,13 +46,26 @@ export default function App() {
           const message: WorkerMessage = e.data;
 
           if (message.type === WorkerEvent.out) {
+            const now = performance.now() / 1000 | 0;
+
+            if (now in time) {
+              (time as any)[now] += 1;
+            } else {
+              (time as any)[now] = 1;
+            }
+
             changeOutput(outputRef.current.value + message.data.value);
           }
 
           if (message.type === WorkerEvent.end) {
-            setEndTime(converMillisecondToString(message.data.time.runTime));
-            setCompileTime(converMillisecondToString(message.data.time.compileTime));
-            setStatMode(modeToString(message.data.mode));
+            ReactDOM.unstable_batchedUpdates(() => {
+              setEndTime(converMillisecondToString(message.data.time.runTime));
+              setCompileTime(converMillisecondToString(message.data.time.compileTime));
+              setStatMode(modeToString(message.data.mode));
+              setIsRunning(false);
+            });
+
+            console.log(time);
           }
         }
 
@@ -63,7 +81,7 @@ export default function App() {
     <div>
       <textarea onChange={changeBFSourceHandler} value={bfSource} />
       <textarea ref={outputRef} onChange={changeOutputHandler} value={output} />
-      <button onClick={runHandler}>run</button>
+      <button disabled={isRunning} onClick={runHandler}>run</button>
 
       <div>
         <p>
