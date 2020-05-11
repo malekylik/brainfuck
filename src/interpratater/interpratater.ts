@@ -1,6 +1,6 @@
-import { OpKind } from '@ir/opcode-kinds';
-import { Opcode } from '@ir/opcode';
-import { opKindToChar, serializeOpcode } from '@ir/utils';
+import { OpKind } from 'ir/opcode-kinds';
+import { Opcode } from 'ir/opcode';
+import { opKindToChar, serializeOpcode } from 'ir/utils';
 
 const MEMORY_SIZE = 30000;
 

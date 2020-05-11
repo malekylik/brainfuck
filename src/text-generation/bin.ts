@@ -1,5 +1,3 @@
-// const {name} = new Uint8Array({size});
-
 const tx = new TextEncoder();
 
 const Numbers = {

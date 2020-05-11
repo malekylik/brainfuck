@@ -1,17 +1,14 @@
 import { parse_from_stream } from './utils/parser';
-import { translate_program } from '@ir/parser';
-// import { simpleinterp } from '@interpratater/interpratater';
-// import { compile } from '@compiler/js/compiler';
-import { compile } from '@compiler/web-assembler/compiler';
-// import { text } from '../test/mandelbrot_mine';
+import { translate_program } from 'ir/parser';
+import { compile } from 'compiler/web-assembler/compiler';
+import { WorkerEvent } from 'consts/worker';
 
 function inF(): string {
   return prompt('enter value');
 }
 
-function outF(v: number, ...args: Array<number>): void {
-  // console.log('outF', v, args);
-  self.postMessage({ type: 'out', value: String.fromCharCode(v) });
+function outF(v: number): void {
+  self.postMessage({ type: WorkerEvent.out, data: { value: String.fromCharCode(v) } });
 }
 
 (self as any).inF = inF;
@@ -20,86 +17,36 @@ function outF(v: number, ...args: Array<number>): void {
 self.addEventListener('message', (e) => {
     const { type, src } = e.data;
 
-    if (type === 'start') {
-       const tokens = parse_from_stream(src);
+    if (type === WorkerEvent.start) {
+      const tokens = parse_from_stream(src);
 
       const ops = translate_program(tokens);
 
+      const time = {
+        compileTime: 0,
+        runTime: 0,
+      };
 
-      // const now = performance.now();
-      // console.log(`start at ${now}`);
-      // simpleinterp(ops);
-
-      // const end = performance.now();
-      // console.log(`end at ${end}`);
-      // console.log(`done in: ${end - now}`);
-
-
-
-      // const compiledFunc = compile(ops, 'inF', 'outF');
-
-      // const now = performance.now();
-      // console.log(`start at ${now}`);
-
-      // compiledFunc();
-      // // const compiledFunc1 = Function(text)
-
-      // const end = performance.now();
-      // console.log(`end at ${end}`);
-      // console.log(`done in: ${end - now}`);
-
+      let now = performance.now();
 
       compile(ops, inF, outF).then(({ module, memory }) => {
-        const now = performance.now();
+        time.compileTime = performance.now() - now;
+
+        now = performance.now();
         console.log(`start at ${now}`);
 
-        // console.log(module.instance.exports.run(10));
-        console.log(module.instance.exports.run());
+        console.log(module.run());
 
         console.log('memory', memory);
 
         const end = performance.now();
         console.log(`end at ${end}`);
         console.log(`done in: ${end - now}`);
+
+        time.runTime = end - now;
+
+        self.postMessage({ type: WorkerEvent.end, data: { time } });
       }).catch(e => console.log(e));
-
-      // const res1: any = compiledFunc();
-
-      // outF('\n'.charCodeAt(0));
-
-      // const res2: Array<number> = compiledFunc1();
-      // const res2: any = compiledFunc1();
-
-      // const it1: Iterable<number> = res1();
-      // const it2: Iterable<number> = res2();
-
-      // let v1 = it1.next();
-      // let idealIt2 = it2.next();
-
-      // let counter = 0;
-
-    // while (!v1.done && !idealIt2.done) {
-      // for (let i = 0; i < 1000; i++) {
-        // if (v1.value[i] !== idealIt2.value[i]) {
-      //       console.log(v1.value);
-      //       console.log(idealIt2.value);
-      //       console.log(i);
-      //       debugger;
-      //       break;
-      //     }
-      //   }
-
-      // counter += 1;
-
-      // if (counter === 87425) {
-      //   debugger;
-      // }
-
-      // v1 = it1.next();
-      // idealIt2 = it2.next();
-    // }
-
-      self.postMessage({ type: 'end' });
     }
 });
 
@@ -136,5 +83,5 @@ self.addEventListener('message', (e) => {
 // <1 d1 >3       --> 4689518
 // >4 d-36 >5     --> 3845696
 // with (LOOP_SET_TO_ZERO, LOOP_MOVE_PTR, LOOP_MOVE_DATA) 31564.180000015767 = 31.5s
-// compiled to js 23954.94999998482 = 24s
-// SET_DATA; DATA_LOOP 15167 = 15s // TO-DO check isPure
+
+

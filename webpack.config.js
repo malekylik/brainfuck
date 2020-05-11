@@ -58,12 +58,13 @@ const config = {
   },
   resolve: {
     alias: {
-      '@ir': path.resolve(__dirname, 'src', 'ir'),
-      '@interpratater': path.resolve(__dirname, 'src', 'interpratater'),
-      '@compiler': path.resolve(__dirname, 'src', 'compiler'),
-      "@text-generation": path.resolve(__dirname, 'src', 'text-generation'),
-      "@components": path.resolve(__dirname, 'src', 'components'),
-      "@consts": path.resolve(__dirname, 'src', 'consts'),
+      'ir': path.resolve(__dirname, 'src', 'ir'),
+      'interpratater': path.resolve(__dirname, 'src', 'interpratater'),
+      'compiler': path.resolve(__dirname, 'src', 'compiler'),
+      "text-generation": path.resolve(__dirname, 'src', 'text-generation'),
+      "components": path.resolve(__dirname, 'src', 'components'),
+      "consts": path.resolve(__dirname, 'src', 'consts'),
+      "types": path.resolve(__dirname, 'src', 'types'),
     },
     extensions: ['.js', '.jsx', '.ts', '.tsx']
   }
@@ -104,12 +105,13 @@ const workerConfig = {
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
     alias: {
-      '@ir': path.resolve(__dirname, 'src', 'ir'),
-      '@interpratater': path.resolve(__dirname, 'src', 'interpratater'),
-      '@compiler': path.resolve(__dirname, 'src', 'compiler'),
-      "@text-generation": path.resolve(__dirname, 'src', 'text-generation'),
-      "@components": path.resolve(__dirname, 'src', 'components'),
-      "@consts": path.resolve(__dirname, 'src', 'consts'),
+      'ir': path.resolve(__dirname, 'src', 'ir'),
+      'interpratater': path.resolve(__dirname, 'src', 'interpratater'),
+      'compiler': path.resolve(__dirname, 'src', 'compiler'),
+      "text-generation": path.resolve(__dirname, 'src', 'text-generation'),
+      "components": path.resolve(__dirname, 'src', 'components'),
+      "consts": path.resolve(__dirname, 'src', 'consts'),
+      "types": path.resolve(__dirname, 'src', 'types'),
     }
   }
 };

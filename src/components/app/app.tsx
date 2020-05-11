@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { mandelbrot } from '@consts/programs';
+import { mandelbrot } from 'consts/programs';
+import { WorkerEvent } from 'consts/worker';
+import { WorkerMessage } from 'types/worker';
 
 export default function App() {
   const [bfSource, changeBFSource] = useState(mandelbrot);
-  const [output, changeOutput] = useState<string>();
+  const [output, changeOutput] = useState('');
+  const [endTime, setEndTime] = useState('???');
+  const [compileTime, setCompileTime] = useState('???');
   const workerRef = useRef<Worker>(null);
   const outputRef = useRef(null);
 
@@ -17,7 +21,7 @@ export default function App() {
   }
 
   function runHandler() {
-    workerRef.current.postMessage({ type: 'start', src: bfSource });
+    workerRef.current.postMessage({ type: WorkerEvent.start, src: bfSource });
   }
 
   useEffect(() => {
@@ -29,14 +33,23 @@ export default function App() {
         workerRef.current = worker;
 
         function messageHandler(e: MessageEvent) {
-          const { data } = e;
-    
-          if (data.type === 'out') {
+          const message: WorkerMessage = e.data;
 
-            changeOutput(outputRef.current.value + data.value);
+          if (message.type === WorkerEvent.out) {
+            changeOutput(outputRef.current.value + message.data.value);
           }
-        
-          if (data.type === 'end') {}
+
+          if (message.type === WorkerEvent.end) {
+            console.log('time', message.data.time);
+
+            const runTime = message.data.time.runTime | 0;
+
+            setEndTime(`${(runTime / 1000) | 0}s ${(runTime - ((runTime / 1000) | 0) * 1000) }ms`);
+
+            const compileTime = message.data.time.compileTime | 0;
+
+            setCompileTime(`${(compileTime / 1000) | 0}s ${(compileTime - ((compileTime / 1000) | 0) * 1000) }ms`);
+          }
         }
 
         workerRef.current?.addEventListener('message', messageHandler);
@@ -52,6 +65,18 @@ export default function App() {
       <textarea onChange={changeBFSourceHandler} value={bfSource} />
       <textarea ref={outputRef} onChange={changeOutputHandler} value={output} />
       <button onClick={runHandler}>run</button>
+
+      <div>
+        <p>
+          <span>compile time: </span>
+          <span>{compileTime}</span>
+        </p>
+
+        <p>
+          <span>end time: </span>
+          <span>{endTime}</span>
+        </p>
+      </div>
     </div>
   );
 }
