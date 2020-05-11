@@ -1,6 +1,7 @@
 import { parse_from_stream } from './utils/parser';
 import { translate_program } from 'ir/parser';
 import { interpret as baseInterpret } from 'interpreter/base-interpreter';
+import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
 import { compile as compileJS } from 'compiler/js/compiler';
 import { compile as compileWebAssembly } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
@@ -45,8 +46,15 @@ self.addEventListener('message', (e) => {
 
       let now = performance.now();
 
-      if (mode === BrainfuckMode.InterpretateBase) {
-        modulePromise = baseInterpret(tokens, inF, outF);
+      if (mode === BrainfuckMode.InterpretateBase || mode === BrainfuckMode.InterpretWithJumptable) {
+        let compile = null;
+
+        switch (mode) {
+          case BrainfuckMode.InterpretateBase: compile = baseInterpret; break;
+          case BrainfuckMode.InterpretWithJumptable: compile = InterpretWithJumptable; break;
+        }
+
+        modulePromise = compile(tokens, inF, outF);
       }
 
       if (mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {

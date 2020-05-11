@@ -95,6 +95,10 @@ export default function App() {
           <input type='checkbox' checked={currentMode === BrainfuckMode.InterpretateBase} onChange={() => setCurrentMode(BrainfuckMode.InterpretateBase)} />
         </p>
         <p>
+          <label>Interpreter with Jumptable</label>
+          <input type='checkbox' checked={currentMode === BrainfuckMode.InterpretWithJumptable} onChange={() => setCurrentMode(BrainfuckMode.InterpretWithJumptable)} />
+        </p>
+        <p>
           <label>JavaScript</label>
           <input type='checkbox' checked={currentMode === BrainfuckMode.CompileJavaScript} onChange={() => setCurrentMode(BrainfuckMode.CompileJavaScript)} />
         </p>
