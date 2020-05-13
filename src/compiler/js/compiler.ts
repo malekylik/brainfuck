@@ -115,7 +115,7 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
           break;
         }
         case OpKind.LOOP_MOVE_DATA: {
-          // TO_DO check why this degradate performance in chrome
+          // TO_DO check why 'if' this degradate performance in chrome
           code.push(
             encode(
               // `if (${dataptr} + ${offset + op.argument} >= 0) {\n` +

@@ -1,132 +1,177 @@
 import { OpKind } from 'ir/opcode-kinds';
 import { Opcode } from 'ir/opcode';
-import { opKindToChar, serializeOpcode } from 'ir/utils';
+import { opKindToChar } from 'ir/utils';
+import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
 
 const MEMORY_SIZE = 30000;
 
-type IntrResult = { pc: number, dataptr: number, memory: Uint8Array, op_cost: { [prop: string]: number; }, trace_count: { [prop: string]: number; } };
-
-function _simpleinterp(ops: Array<Opcode>): IntrResult {
-  const memory = new Uint8Array(MEMORY_SIZE).fill(0);
-  const op_cost: { [prop: string]: number; } = {};
-  const trace_count: { [prop: string]: number; } = {};
-  let current_trace = '';
+export function interpret(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
+  const memory = new Uint8Array(MEMORY_SIZE);
+  const offset_stack: Array<number> = [];
   let pc = 0;
   let dataptr = 0;
+  let offset = 0;
+  let loop_data_offset = 0;
+  let loop_data_offsets: Array<number> = [];
 
-  while (pc < ops.length) {
-    const op = ops[pc];
+  function run() {
+    while (pc < ops.length) {
+      const op = ops[pc];
 
-    if (__DEV__) {
-      op_cost[op.kind] = 1 + (op_cost[op.kind] || 0);
-    }
-
-    switch (op.kind) {
-      case OpKind.INC_PTR:
-        dataptr += op.argument;
-        break;
-      case OpKind.DEC_PTR:
-        dataptr -= op.argument;
-        break;
-      case OpKind.INC_DATA:
-        memory[dataptr] += op.argument;
-        break;
-      case OpKind.DEC_DATA:
-        memory[dataptr] -= op.argument;
-        break;
-      case OpKind.READ_STDIN:
-        for (let i = 0; i < op.argument; i++) {
-          memory[dataptr] = Number(prompt('enter value'));
-        }
-        break;
-      case OpKind.WRITE_STDOUT:
-        for (let i = 0; i < op.argument; i++) {
-          self.postMessage({ type: 'out', value: String.fromCharCode(memory[dataptr]) });
-        }
-        break;
-      case OpKind.LOOP_SET_TO_ZERO:
-        memory[dataptr] = 0;
-        break;
-      case OpKind.LOOP_MOVE_PTR:
-        while (memory[dataptr]) {
+      switch (op.kind) {
+        case OpKind.INC_PTR: {
           dataptr += op.argument;
+
+          break;
         }
-        break;
-      case OpKind.LOOP_MOVE_DATA: {
-        if (memory[dataptr]) {
-          const move_to_ptr = dataptr + op.argument;
-          memory[move_to_ptr] += memory[dataptr];
-          memory[dataptr] = 0;
+
+        case OpKind.DEC_PTR: {
+          dataptr -= op.argument;
+
+          break;
         }
-        break;
+
+        case OpKind.INC_OFFSET: {
+          offset += op.argument;
+
+          break;
+        }
+
+        case OpKind.DEC_OFFSET: {
+          offset -= op.argument;
+
+          break;
+        }
+
+        case OpKind.INC_DATA: {
+          memory[dataptr + offset] += op.argument;
+
+          break;
+        }
+
+        case OpKind.DEC_DATA: {
+          memory[dataptr + offset] -= op.argument;
+
+          break;
+        }
+
+        case OpKind.READ_STDIN: {
+          for (let i = 0; i < op.argument; i++) {
+            memory[dataptr + offset] = Number(inF());
+          }
+
+          break;
+        }
+
+        case OpKind.WRITE_STDOUT: {
+          for (let i = 0; i < op.argument; i++) {
+            outF(memory[dataptr + offset]);
+          }
+
+          break;
+        }
+
+        case OpKind.LOOP_SET_TO_ZERO: {
+          memory[dataptr + offset] = 0;
+
+          break;
+        }
+
+        case OpKind.LOOP_MOVE_PTR: {
+          while (memory[dataptr + offset]) {
+            dataptr += op.argument;
+          }
+
+          break;
+        }
+
+        case OpKind.LOOP_MOVE_DATA: {
+          const move_to_ptr = dataptr + offset + op.argument;
+          memory[move_to_ptr] += memory[dataptr + offset];
+          memory[dataptr + offset] = 0;
+
+          break;
+        }
+
+        case OpKind.JUMP_IF_DATA_ZERO: {
+          if (memory[dataptr + offset] === 0) {
+            pc = op.argument;
+          } else {
+            offset_stack.push(offset);
+          }
+          
+          break;
+        }
+
+        case OpKind.JUMP_IF_DATA_NOT_ZERO: {
+          if (memory[dataptr + offset_stack[offset_stack.length - 1]] !== 0) {
+            pc = op.argument;
+            offset = offset_stack[offset_stack.length - 1];
+          } else {
+            offset = offset_stack.pop();
+          }
+
+          break;
+        }
+
+        case OpKind.RESET_DATA_RANGE: {
+          for (let i = 1; i < op.argument + 1; i++) {
+            memory[dataptr + offset + i] = 0;
+          }
+
+          break;
+        }
+
+        case OpKind.SET_DATA: {
+          memory[dataptr + offset] = op.argument;
+
+          break;
+        }
+
+        case OpKind.DATA_LOOP: {
+          if (memory[dataptr + offset] === 0) {
+            pc = op.argument;
+          } else {
+            loop_data_offset = offset;
+            loop_data_offsets.push(loop_data_offset);
+          }
+
+          break;
+        }
+
+        case OpKind.DATA_LOOP_ADD: {
+          memory[dataptr + offset] += memory[dataptr + loop_data_offset] * op.argument;
+
+          break;
+        }
+        
+        case OpKind.DATA_LOOP_SUB: {
+          memory[dataptr + offset] -= memory[dataptr + loop_data_offset] * op.argument;
+
+          break;
+        }
+
+        case OpKind.DATA_LOOP_END: {
+          if (memory[dataptr + loop_data_offset] !== 0) {
+            memory[dataptr + loop_data_offset] = 0;
+          }
+
+          offset = loop_data_offsets.pop();
+          loop_data_offset = loop_data_offsets[loop_data_offsets.length - 1];
+
+          break;
+        }
+
+        default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
       }
-      case OpKind.JUMP_IF_DATA_ZERO:
-        if (memory[dataptr] == 0) {
-          pc = op.argument;
-        }
-        break;
-      case OpKind.JUMP_IF_DATA_NOT_ZERO:
-        if (memory[dataptr] != 0) {
-          pc = op.argument;
-        }
-        break;
-      default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
+
+      pc++;
     }
 
-    if (__DEV__) {
-      if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
-        current_trace = '';
-      } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
-        if (current_trace.length > 0) {
-          trace_count[current_trace] = 1 + (trace_count[current_trace] || 0);
-          current_trace = '';
-        }
-      } else {
-        current_trace += ` ${serializeOpcode(op)}`;
-      }
-    }
-
-    pc++;
   }
 
-
-  return { pc, dataptr, memory, op_cost, trace_count };
-}
-
-function _simpleinterpDebug(ops: Array<Opcode>): IntrResult {
-  const res = _simpleinterp(ops);
-  const { pc, dataptr, memory, op_cost, trace_count } = res;
-
-  // Done running the program. Dump state if verbose.
-  console.log(`* pc=${pc}`);
-  console.log(`* dataptr=${dataptr}`);
-  console.log(`* Memory nonzero locations:`);
-
-  for (let i = 0, pcount = 0; i < memory.length; i++) {
-    if (memory[i]) {
-      console.log(`[${String(i).padStart(3)}] = ${String(memory[i]).padEnd(3)}       `);
-      pcount++;
-
-      if (pcount > 0 && pcount % 4 == 0) {
-        console.log();
-      }
-    }
-  }
-
-  let total = 0;
-  Object.entries(op_cost).forEach(([op, count]) => {
-    console.log(`${opKindToChar(op as OpKind)}  -->  ${count}`);
-
-    total += count;
+  return Promise.resolve({
+    module: { run },
+    memory,
   });
-
-  console.log(`.. Total: ${total}`);
-
-  Object.entries(trace_count)
-  .sort((a, b) => b[1] - a[1])
-  .forEach(([s, c]) => console.log(`${s.padEnd(15)} --> ${c}`));
-
-  return res;
 }
-
-export const simpleinterp = __DEV__ ? _simpleinterpDebug : _simpleinterp;

@@ -2,6 +2,7 @@ import { parse_from_stream } from './utils/parser';
 import { translate_program } from 'ir/parser';
 import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
+import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
 import { compile as compileJS } from 'compiler/js/compiler';
 import { compile as compileWebAssembly } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
@@ -57,11 +58,12 @@ self.addEventListener('message', (e) => {
         modulePromise = compile(tokens, inF, outF);
       }
 
-      if (mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
+      if (mode === BrainfuckMode.InterpretWithIR || mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
         const ops = translate_program(tokens);
         let compile = null;
 
         switch (mode) {
+          case BrainfuckMode.InterpretWithIR: compile = OptimizedInterpret; break;
           case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
           case BrainfuckMode.CompileWebAssembly: compile = compileWebAssembly; break;
         }
@@ -128,3 +130,15 @@ self.addEventListener('message', (e) => {
 // with (LOOP_SET_TO_ZERO, LOOP_MOVE_PTR, LOOP_MOVE_DATA) 31564.180000015767 = 31.5s
 // {2: 516, 3: 812, 4: 1074, 5: 1090, 6: 1091, 7: 1120, 8: 537}
 
+// todo optimize
+// while (__m__[p + 16]) {
+//   while (__m__[p + 16]) {
+//       p += 9;
+//   }
+//   __m__[p + 16] += 1;
+//   while (__m__[p + 16]) {
+//       p += -9;
+//   }
+//   __m__[p + 25] -= 1;
+//   p += 9;
+// }

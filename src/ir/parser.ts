@@ -188,7 +188,9 @@ export function translate_program(tokens: Array<string>): Array<Opcode> {
               const end = ops.length - Number(ops[ops.length - 1].kind === OpKind.DEC_DATA);
 
               if (p > open_bracket_offset + 1 || end < ops.length) {
-                optimized_loop.push(createOpcode(OpKind.DATA_LOOP, 0));
+                const start = createOpcode(OpKind.DATA_LOOP, 0);
+
+                optimized_loop.push(start);
 
                 while (p < end) {
                   const op = ops[p];
@@ -206,6 +208,8 @@ export function translate_program(tokens: Array<string>): Array<Opcode> {
 
                 optimized_loop.push(createOpcode(OpKind.DATA_LOOP_END, open_bracket_offset));
                 ops = ops.slice(0, open_bracket_offset).concat(optimized_loop);
+
+                start.argument = ops.length - 1;
               } else {
                 ops[open_bracket_offset].argument = ops.length;
                 ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, open_bracket_offset));
