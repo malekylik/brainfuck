@@ -24,6 +24,9 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
   code.push(
     encode(`let ${dataptr} = 0;\n`)
   );
+  // code.push(
+  //   encode(`let g = 0;\n`)
+  // );
 
     let pc = 0;
     while (pc < ops.length) {
@@ -84,6 +87,28 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
         case OpKind.WRITE_STDOUT: {
           if (op.argument < 2) {
+            // code.push(
+            //   encode(
+            //     `if (g !== 32 && ${memoryName}[${dataptr} + ${offset}] === 32) { debugger; }\n`
+            //     )
+            // ); 
+            // code.push(
+            //   encode(
+            //       `g = ${memoryName}[${dataptr} + ${offset}];\n`
+            //     )
+            // ); 
+            // code.push(
+            //   encode(
+            //     `if (${memoryName}[${dataptr} + ${offset}] === 32) g++;\n` +
+            //     `else g = 0;\n`
+            //     )
+            // ); 
+            // code.push(
+            //   encode(
+            //     `if (g > 6) { debugger; }\n`
+            //     )
+            // ); 
+
             code.push(
               encode(`${outFName}(${memoryName}[${dataptr} + ${offset}]);\n`)
             ); 
@@ -108,7 +133,7 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
           code.push(
             encode(
               `while (${memoryName}[${dataptr} + ${offset}]) {\n` +
-                `${dataptr} += ${op.argument};\n}\n`
+                `${dataptr} ${op.argument < 0 ? '-' : '+'}= ${Math.abs(op.argument)};\n}\n`
               )
           );
 

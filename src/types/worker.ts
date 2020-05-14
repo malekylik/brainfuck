@@ -1,6 +1,11 @@
 import { WorkerEvent } from 'consts/worker';
 import { BrainfuckMode } from 'consts/mode';
 
+export type CompilerTimeProfile = {
+  runTime: number;
+  compileTime: number;
+};
+
 export type WorkerMessageStart = {
   type: WorkerEvent.start,
   data: {
@@ -19,10 +24,7 @@ export type WorkerMessageOut = {
 export type WorkerMessageEnd = {
   type: WorkerEvent.end,
   data: {
-    time: {
-      runTime: number;
-      compileTime: number;
-    },
+    time: CompilerTimeProfile,
     mode: BrainfuckMode,
   }
 };
