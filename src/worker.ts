@@ -1,105 +1,97 @@
 import { parse_from_stream } from './utils/parser';
-import { translate_program } from '@ir/parser';
-// import { simpleinterp } from '@interpratater/interpratater';
-// import { compile } from '@compiler/js/compiler';
-import { compile } from '@compiler/web-assembler/compiler';
-// import { text } from '../test/mandelbrot_mine';
+import { translate_program } from 'ir/parser';
+import { interpret as baseInterpret } from 'interpreter/base-interpreter';
+import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
+import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
+import { compile as compileJS } from 'compiler/js/compiler';
+import { compile as compileWebAssembly } from 'compiler/web-assembler/compiler';
+import { WorkerEvent } from 'consts/worker';
+import { WorkerMessage } from 'types/worker';
+import { BrainfuckMode } from 'consts/mode';
+
+let prevFrame = 0;
+let lastFrame = 0;
+let stringToSend = '';
 
 function inF(): string {
   return prompt('enter value');
 }
 
-function outF(v: number, ...args: Array<number>): void {
-  // console.log('outF', v, args);
-  self.postMessage({ type: 'out', value: String.fromCharCode(v) });
+function outF(v: number): void {
+  lastFrame = (performance.now() / 16) | 0;
+
+  if (prevFrame !== lastFrame) {
+    self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } });
+
+    prevFrame = lastFrame;
+    stringToSend = String.fromCharCode(v) ?? '';
+  } else {
+    stringToSend = stringToSend + String.fromCharCode(v);
+  }
 }
 
-(self as any).inF = inF;
-(self as any).outF = outF;
+(self as any)[inF.name] = inF;
+(self as any)[outF.name] = outF;
 
 self.addEventListener('message', (e) => {
-    const { type, src } = e.data;
+    const message: WorkerMessage = e.data;
 
-    if (type === 'start') {
-       const tokens = parse_from_stream(src);
+    if (message.type === WorkerEvent.start) {
+      const { mode, src } = message.data;
+      const tokens = parse_from_stream(src);
+      const time = {
+        compileTime: 0,
+        runTime: 0,
+      };
+      let modulePromise = null;
 
-      const ops = translate_program(tokens);
+      let now = performance.now();
 
+      if (mode === BrainfuckMode.InterpretateBase || mode === BrainfuckMode.InterpretWithJumptable) {
+        let compile = null;
 
-      // const now = performance.now();
-      // console.log(`start at ${now}`);
-      // simpleinterp(ops);
+        switch (mode) {
+          case BrainfuckMode.InterpretateBase: compile = baseInterpret; break;
+          case BrainfuckMode.InterpretWithJumptable: compile = InterpretWithJumptable; break;
+        }
 
-      // const end = performance.now();
-      // console.log(`end at ${end}`);
-      // console.log(`done in: ${end - now}`);
+        modulePromise = compile(tokens, inF, outF);
+      }
 
+      if (mode === BrainfuckMode.InterpretWithIR || mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
+        const ops = translate_program(tokens);
+        let compile = null;
 
+        switch (mode) {
+          case BrainfuckMode.InterpretWithIR: compile = OptimizedInterpret; break;
+          case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
+          case BrainfuckMode.CompileWebAssembly: compile = compileWebAssembly; break;
+        }
 
-      // const compiledFunc = compile(ops, 'inF', 'outF');
+        modulePromise = compile(ops, inF, outF);
+      }
 
-      // const now = performance.now();
-      // console.log(`start at ${now}`);
+      modulePromise.then(({ module, memory }) => {
+          time.compileTime = performance.now() - now;
 
-      // compiledFunc();
-      // // const compiledFunc1 = Function(text)
+          now = performance.now();
+          console.log(`start at ${now}`);
 
-      // const end = performance.now();
-      // console.log(`end at ${end}`);
-      // console.log(`done in: ${end - now}`);
+          module.run();
 
+          self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
+          stringToSend = '';
 
-      compile(ops, inF, outF).then(({ module, memory }) => {
-        const now = performance.now();
-        console.log(`start at ${now}`);
+          console.log('memory', memory);
 
-        // console.log(module.instance.exports.run(10));
-        console.log(module.instance.exports.run());
+          const end = performance.now();
 
-        console.log('memory', memory);
+          console.log(`end at ${end}`);
 
-        const end = performance.now();
-        console.log(`end at ${end}`);
-        console.log(`done in: ${end - now}`);
-      }).catch(e => console.log(e));
+          time.runTime = end - now;
 
-      // const res1: any = compiledFunc();
-
-      // outF('\n'.charCodeAt(0));
-
-      // const res2: Array<number> = compiledFunc1();
-      // const res2: any = compiledFunc1();
-
-      // const it1: Iterable<number> = res1();
-      // const it2: Iterable<number> = res2();
-
-      // let v1 = it1.next();
-      // let idealIt2 = it2.next();
-
-      // let counter = 0;
-
-    // while (!v1.done && !idealIt2.done) {
-      // for (let i = 0; i < 1000; i++) {
-        // if (v1.value[i] !== idealIt2.value[i]) {
-      //       console.log(v1.value);
-      //       console.log(idealIt2.value);
-      //       console.log(i);
-      //       debugger;
-      //       break;
-      //     }
-      //   }
-
-      // counter += 1;
-
-      // if (counter === 87425) {
-      //   debugger;
-      // }
-
-      // v1 = it1.next();
-      // idealIt2 = it2.next();
-    // }
-
-      self.postMessage({ type: 'end' });
+          self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
+        }).catch(e => console.log(e));
     }
 });
 
@@ -136,5 +128,38 @@ self.addEventListener('message', (e) => {
 // <1 d1 >3       --> 4689518
 // >4 d-36 >5     --> 3845696
 // with (LOOP_SET_TO_ZERO, LOOP_MOVE_PTR, LOOP_MOVE_DATA) 31564.180000015767 = 31.5s
-// compiled to js 23954.94999998482 = 24s
-// SET_DATA; DATA_LOOP 15167 = 15s // TO-DO check isPure
+// {2: 516, 3: 812, 4: 1074, 5: 1090, 6: 1091, 7: 1120, 8: 537}
+
+// todo optimize
+// while (__m__[p + 16]) {
+//   while (__m__[p + 16]) {
+//       p += 9;
+//   }
+//   __m__[p + 16] += 1;
+//   while (__m__[p + 16]) {
+//       p += -9;
+//   }
+//   __m__[p + 25] -= 1;
+//   p += 9;
+// }
+
+// todo optimize go back loop
+// while (__m__[p + 52]) {
+//   __m__[p + 53] = 0;
+//   __m__[p + 54] = 0;
+//   __m__[p + 55] = 0;
+//   __m__[p + 56] = 0;
+//   __m__[p + 57] = 0;
+//   __m__[p + 58] = 0;
+//   p += 9;
+// }
+// while (__m__[p + 43]) {
+//   p += -9;
+// }
+// while (__m__[p + 52]) {
+//   __m__[p + 57] = 0;
+//   p += 9;
+// }
+// while (__m__[p + 43]) {
+//   p += -9;
+// }

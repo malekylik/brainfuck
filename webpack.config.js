@@ -5,7 +5,7 @@ const { DefinePlugin } = require('webpack');
 
 const config = {
   entry: {
-    main: path.resolve(__dirname, 'src', 'index.ts'),
+    main: path.resolve(__dirname, 'src', 'index.tsx'),
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -34,11 +34,12 @@ const config = {
   module: {
     rules: [
       {
-        test: /\.ts?$/,
+        test: /(\.ts?$|\.tsx?$)/,
         exclude: /(node_modules|bower_components)/,
         loader: 'babel-loader',
         options: {
-          presets: ['@babel/preset-env', '@babel/preset-typescript']
+          presets: ['@babel/preset-env', '@babel/preset-react', '@babel/preset-typescript'],
+          plugins: ['@babel/plugin-transform-react-jsx'],
         }
       }
     ]
@@ -57,11 +58,16 @@ const config = {
   },
   resolve: {
     alias: {
-      memory: path.resolve(__dirname, 'src/memory'),
-      utils: path.resolve(__dirname, 'src/utils'),
-      render: path.resolve(__dirname, 'src/render'),
+      'ir': path.resolve(__dirname, 'src', 'ir'),
+      'interpreter': path.resolve(__dirname, 'src', 'interpreter'),
+      'compiler': path.resolve(__dirname, 'src', 'compiler'),
+      "text-generation": path.resolve(__dirname, 'src', 'text-generation'),
+      "components": path.resolve(__dirname, 'src', 'components'),
+      "consts": path.resolve(__dirname, 'src', 'consts'),
+      "types": path.resolve(__dirname, 'src', 'types'),
+      "utils": path.resolve(__dirname, 'src', 'utils'),
     },
-    extensions: ['.js', '.ts']
+    extensions: ['.js', '.jsx', '.ts', '.tsx']
   }
 };
 
@@ -98,12 +104,16 @@ const workerConfig = {
     ]
   },
   resolve: {
-    extensions: ['.js', '.ts'],
+    extensions: ['.js', '.jsx', '.ts', '.tsx'],
     alias: {
-      '@ir': path.resolve(__dirname, 'src', 'ir'),
-      '@interpratater': path.resolve(__dirname, 'src', 'interpratater'),
-      '@compiler': path.resolve(__dirname, 'src', 'compiler'),
-      "@text-generation": path.resolve(__dirname, 'src', 'text-generation'),
+      'ir': path.resolve(__dirname, 'src', 'ir'),
+      'interpreter': path.resolve(__dirname, 'src', 'interpreter'),
+      'compiler': path.resolve(__dirname, 'src', 'compiler'),
+      "text-generation": path.resolve(__dirname, 'src', 'text-generation'),
+      "components": path.resolve(__dirname, 'src', 'components'),
+      "consts": path.resolve(__dirname, 'src', 'consts'),
+      "types": path.resolve(__dirname, 'src', 'types'),
+      "utils": path.resolve(__dirname, 'src', 'utils'),
     }
   }
 };

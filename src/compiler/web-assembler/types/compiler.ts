@@ -1,0 +1,3 @@
+interface ModuleExports {
+  run: () => void,
+}

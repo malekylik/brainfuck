@@ -188,7 +188,9 @@ export function translate_program(tokens: Array<string>): Array<Opcode> {
               const end = ops.length - Number(ops[ops.length - 1].kind === OpKind.DEC_DATA);
 
               if (p > open_bracket_offset + 1 || end < ops.length) {
-                optimized_loop.push(createOpcode(OpKind.DATA_LOOP, 0));
+                const start = createOpcode(OpKind.DATA_LOOP, 0);
+
+                optimized_loop.push(start);
 
                 while (p < end) {
                   const op = ops[p];
@@ -206,6 +208,8 @@ export function translate_program(tokens: Array<string>): Array<Opcode> {
 
                 optimized_loop.push(createOpcode(OpKind.DATA_LOOP_END, open_bracket_offset));
                 ops = ops.slice(0, open_bracket_offset).concat(optimized_loop);
+
+                start.argument = ops.length - 1;
               } else {
                 ops[open_bracket_offset].argument = ops.length;
                 ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, open_bracket_offset));
@@ -289,33 +293,6 @@ export function translate_program(tokens: Array<string>): Array<Opcode> {
 
       ops.push(createOpcode(kind, num_repeats));
     }
-  }
-
-  let offset = 0;
-  let loop_depth = 0;
-  let p = 0;
-  while (p < ops.length) {
-    const op = ops[p];
-
-    if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
-      loop_depth += 1;
-    } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
-      loop_depth -= 1;
-    }
-
-    if (loop_depth === 0 && op.kind === OpKind.INC_PTR) {
-      op.kind = OpKind.INC_OFFSET;
-
-      offset += op.argument;
-    }
-
-    if (loop_depth === 0 && op.kind === OpKind.DEC_PTR) {
-      op.kind = OpKind.DEC_OFFSET;
-
-      offset -= op.argument;
-    }
-
-    p += 1;
   }
 
   return ops;

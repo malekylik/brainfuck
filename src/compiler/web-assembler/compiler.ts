@@ -1,10 +1,11 @@
-import { OpKind } from '@ir/opcode-kinds';
-import { Opcode } from '@ir/opcode';
-import { opKindToChar } from '@ir/utils';
-import { emitter, encodeVector, Valtype, Opcodes, emptyArray } from './emitter';
+import { OpKind } from 'ir/opcode-kinds';
+import { Opcode } from 'ir/opcode';
+import { opKindToChar } from 'ir/utils';
+import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
+import { emitter, Valtype, Opcodes } from './emitter';
 import { unsignedLEB128, signedLEB128 } from './encoding';
 
-function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) => void): Promise<any> {
+function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
   const code: Array<number> = [];
   const offset_stack = [];
   let offset = 0;
@@ -12,20 +13,11 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
   let loop_data_offsets = [];
   const p = unsignedLEB128(0);
   const p_offset = unsignedLEB128(1);
-  const loop_index = 2;
-  const max_depth = 0;
-
-
-  for (let i = 0, depth = 0; i < ops.length; i++) {
-
-  }
 
   code.push(
-    2, // 2 of sequence(5 - int32, 8 - int32, 10 - f32)
-    0x05, // 5 of int32
-    127,
-    0x8, // 8 of int32
-    127,
+    ...unsignedLEB128(1),
+    ...unsignedLEB128(2), // 2 of int32
+    Valtype.i32,
   );
 
   code.push(
@@ -37,12 +29,6 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
 
       switch (op.kind) {
         case OpKind.INC_PTR: {
-
-
-          // code.push(
-          //   encode(`${dataptr} += ${op.argument};\n`)
-          // );
-
           code.push(
               Opcodes.get_local,
               ...p,
@@ -60,10 +46,6 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
         }
 
         case OpKind.DEC_PTR: {
-          // code.push(
-          //   encode(`${dataptr} -= ${op.argument};\n`)
-          // );
-
           code.push(
             Opcodes.get_local,
             ...p,
@@ -92,21 +74,7 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
           break;
         }
 
-        // Opcodes.i32_const,
-        // ...signedLEB128(12), // address to store
-  
-        // Opcodes.i32_const,
-        // ...signedLEB128(62), // value to stroe
-  
-        // Opcodes.i32_store8,
-        // ...unsignedLEB128(0), // flag
-        // ...signedLEB128(-5),   // offset - only unsigned
-
         case OpKind.INC_DATA: {
-          if (offset < 0 || op.argument < 0) {
-            debugger;
-          }
-
           code.push(
             Opcodes.get_local,
             ...p,
@@ -136,23 +104,10 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
             ...unsignedLEB128(0),
           );
 
-          // code.push(
-          //   encode(`${memoryName}[${dataptr} + ${offset}] += ${op.argument};\n`)
-          // );
-
           break;
         }
 
         case OpKind.DEC_DATA: {
-          // code.push(
-          //   encode(`${memoryName}[${dataptr} + ${offset}] -= ${op.argument};\n`)
-          // );
-
-          if (offset < 0 || op.argument < 0) {
-            debugger;
-          }
-
-
           code.push(
             Opcodes.get_local,
             ...p,
@@ -186,12 +141,13 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
         }
 
         case OpKind.READ_STDIN: {
+          // TO_DO add read char
           // code.push(
           //   encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${dataptr} + ${offset}] = ${inF}();\n`)
           // );
 
           break;
-          }
+        }
 
         case OpKind.WRITE_STDOUT: {
           // if (op.argument < 2) {
@@ -204,8 +160,7 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
           //   );
           // }
 
-            // TO_DO add loop for out
-
+          // TO_DO add loop for out
           code.push(
             Opcodes.get_local,
             ...p,
@@ -223,15 +178,10 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
             ...unsignedLEB128(0),
           );
 
-            break;
+          break;
         }
 
         case OpKind.LOOP_SET_TO_ZERO: {
-          // code.push(
-          //   encode(`${memoryName}[${dataptr} + ${offset}] = 0;\n`)
-          // );
-
-          
           code.push(
             Opcodes.get_local,
             ...p,
@@ -253,13 +203,6 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
         }
 
         case OpKind.LOOP_MOVE_PTR: {
-          // code.push(
-          //   encode(
-          //     `while (${memoryName}[${dataptr} + ${offset}]) {\n` +
-          //       `${dataptr} += ${op.argument};\n}\n`
-          //     )
-          // );
-
           code.push(
             Opcodes.block,
             Valtype.void,
@@ -306,22 +249,10 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
 
           break;
         }
+
         case OpKind.LOOP_MOVE_DATA: {
-          // code.push(
-          //   encode(
-          //     `${memoryName}[${dataptr} + ${offset + op.argument}] += ${memoryName}[${dataptr} + ${offset}];\n` +
-          //     `${memoryName}[${dataptr} + ${offset}] = 0;\n`
-          //   )
-          // );
-
-          // if (op.argument === -36) {
-          //   debugger;
-          // }
-
-          // TODO check address
+          // TODO can result in invalid memory access
           code.push(
-
-
             // OK
             Opcodes.get_local,
             ...p,
@@ -450,10 +381,6 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
             Opcodes.br_if,
             ...unsignedLEB128(1),
           );
-          
-          // code.push(
-            //   encode(`while (${memoryName}[${dataptr} + ${offset}]) {\n`)
-            // );
 
           offset_stack.push(offset);
 
@@ -461,13 +388,8 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
         }
 
         case OpKind.JUMP_IF_DATA_NOT_ZERO: {
-          // code.push(
-          //   encode(`}\n`)
-          // );
-
           code.push(
             Opcodes.br,
-            // ...unsignedLEB128(offset_stack.length),
             ...unsignedLEB128(0),
             Opcodes.end,
             Opcodes.end,
@@ -480,16 +402,6 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
         }
 
         case OpKind.RESET_DATA_RANGE: {
-          // for (let i = 1; i < op.argument + 1; i++) {
-          //   code.push(
-          //     encode(`${memoryName}[${dataptr} + ${offset + i}] = `)
-          //   );
-          // }
-
-          // code.push(
-          //   encode(`${0};\n`)
-          // );
-
           code.push(
             Opcodes.get_local,
             ...p,
@@ -530,11 +442,6 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
         }
 
         case OpKind.SET_DATA: {
-          // code.push(
-          //   encode(`${memoryName}[${dataptr} + ${offset}] = ${op.argument};\n`)
-          // );
-
-
           code.push(
             Opcodes.get_local,
             ...p,
@@ -581,20 +488,10 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
             Valtype.void,
           );
 
-          // code.push(
-          //   encode(`if (${memoryName}[${dataptr} + ${loop_data_offset}]) {\n`)
-          // );
-
           break;
         }
 
         case OpKind.DATA_LOOP_END: {
-          // code.push(
-          //   encode(
-          //     `${memoryName}[${dataptr} + ${loop_data_offset}] = 0;\n` +
-          //     `}\n`
-          //   )
-          // );
           code.push(
             Opcodes.get_local,
             ...p,
@@ -621,15 +518,6 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
         }
 
         case OpKind.DATA_LOOP_ADD: {
-          // if (op.argument === 1) {
-          //   code.push(
-          //     encode(`${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}];\n`)
-          //   );
-          // } else {
-          //   code.push(
-          //     encode(`${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument};\n`)
-          //   );
-          // }
           if (op.argument === 1) {
             code.push(
               Opcodes.get_local,
@@ -717,15 +605,6 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
         }
 
         case OpKind.DATA_LOOP_SUB: {
-          // if (op.argument === 1) {
-          //   code.push(
-          //     encode(`${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}];\n`)
-          //   );
-          // } else {
-          //   code.push(
-          //     encode(`${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument};\n`)
-          //   );
-          // }
           if (op.argument === 1) {
             code.push(
               Opcodes.get_local,
@@ -812,17 +691,13 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
           break;
         }
 
-        // default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
+        default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
       }
   
       pc++;
     }
 
-  // console.log('code', code);
-  // const string = txd.decode(Uint8Array.from(code.flat()));
   const wasm = emitter(code);
-
-  // console.log('wasm', wasm);
 
   const memory = new WebAssembly.Memory({ initial: 1 });
 
@@ -835,7 +710,7 @@ function compile_prod(ops: Array<Opcode>, inF: () => string, outF: (v: number) =
   });
 
   return instance.then(module => ({
-    module,
+    module: { run: () => { (module.instance.exports as any).run(); } },
     memory,
   }));
 }
