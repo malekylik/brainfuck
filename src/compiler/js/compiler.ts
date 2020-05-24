@@ -256,6 +256,8 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
   const string = txd.decode(Uint8Array.from(code.flat()));
   const module = new Function(string);
 
+  console.log(string);
+
   return Promise.resolve({
     module: { run: () => { module(); } },
     memory: (self as any)[memoryName]

@@ -67,7 +67,7 @@ function optimize_range_update(ops: Array<Opcode>, dec_ptr_strt: number): Array<
   return new_ops;
 }
 
-export function translate_program(tokens: Array<string>): Array<Opcode> {
+export function _translate_program(tokens: Array<string>): Array<Opcode> {
   let pc = 0;
   let program_size = tokens.length;
   let ops: Array<Opcode> = [];
@@ -98,139 +98,140 @@ export function translate_program(tokens: Array<string>): Array<Opcode> {
       // Try to optimize this loop; if optimize_loop succeeds, it returns a
       // non-empty vector which we can splice into ops in place of the loop.
       // If the returned vector is empty, we proceed as usual.
-      const optimized_loop = optimize_loop(ops, open_bracket_offset);
+      // const optimized_loop = optimize_loop(ops, open_bracket_offset);
+      const optimized_loop: Array<Opcode> = [];
 
       // console.log(open_bracket_offset);
 
       if (!optimized_loop.length) {
-          let offset = 0;
-          let loop_depth = 0;
-          let isPure = true;
-          let p = open_bracket_offset + 1;
+          // let offset = 0;
+          // let loop_depth = 0;
+          // let isPure = true;
+          // let p = open_bracket_offset + 1;
 
-          const buffer_size = 60000;
-          const loop_count = new Uint8Array(buffer_size);
-          const middle = (buffer_size / 2) | 0;
+          // const buffer_size = 60000;
+          // const loop_count = new Uint8Array(buffer_size);
+          // const middle = (buffer_size / 2) | 0;
 
-          while (p < ops.length) {
-            const op = ops[p];
+          // while (p < ops.length) {
+          //   const op = ops[p];
 
-            if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
-              isPure = isPure && false;
-              loop_depth += 1;
-            } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
-              loop_depth -= 1;
-            }
+          //   if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
+          //     isPure = isPure && false;
+          //     loop_depth += 1;
+          //   } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
+          //     loop_depth -= 1;
+          //   }
 
-            if (loop_depth === 0 && op.kind === OpKind.INC_PTR) {
-              op.kind = OpKind.INC_OFFSET;
+          //   if (loop_depth === 0 && op.kind === OpKind.INC_PTR) {
+          //     op.kind = OpKind.INC_OFFSET;
 
-              offset += op.argument;
-            }
+          //     offset += op.argument;
+          //   }
 
-            if (loop_depth === 0 && op.kind === OpKind.DEC_PTR) {
-              op.kind = OpKind.DEC_OFFSET;
+          //   if (loop_depth === 0 && op.kind === OpKind.DEC_PTR) {
+          //     op.kind = OpKind.DEC_OFFSET;
 
-              offset -= op.argument;
-            }
+          //     offset -= op.argument;
+          //   }
 
-            if (loop_depth === 0 && op.kind === OpKind.INC_DATA) {
-              loop_count[middle + offset] += op.argument;
-            } else if (loop_depth === 0 && op.kind === OpKind.DEC_DATA) {
-              loop_count[middle + offset] -= op.argument;
-            }
+          //   if (loop_depth === 0 && op.kind === OpKind.INC_DATA) {
+          //     loop_count[middle + offset] += op.argument;
+          //   } else if (loop_depth === 0 && op.kind === OpKind.DEC_DATA) {
+          //     loop_count[middle + offset] -= op.argument;
+          //   }
 
-            // TO_DO check if this can break optimization
-            isPure = isPure && !(op.kind === OpKind.LOOP_MOVE_PTR);
-            isPure = isPure && !(op.kind === OpKind.LOOP_MOVE_DATA);
-            isPure = isPure && !(op.kind === OpKind.RESET_DATA_RANGE);
+          //   // TO_DO check if this can break optimization
+          //   isPure = isPure && !(op.kind === OpKind.LOOP_MOVE_PTR);
+          //   isPure = isPure && !(op.kind === OpKind.LOOP_MOVE_DATA);
+          //   isPure = isPure && !(op.kind === OpKind.RESET_DATA_RANGE);
 
-            // check if counter of data_loop updated from outer loop
-            if (loop_depth === 0 && op.kind === OpKind.DATA_LOOP && loop_count[middle + offset] !== 0) {
-              isPure = false;
-            }
+          //   // check if counter of data_loop updated from outer loop
+          //   if (loop_depth === 0 && op.kind === OpKind.DATA_LOOP && loop_count[middle + offset] !== 0) {
+          //     isPure = false;
+          //   }
 
-            p += 1;
-          }
+          //   p += 1;
+          // }
 
-          if (offset !== 0) {
-            ops.push(createOpcode(offset < 0 ? OpKind.DEC_PTR : OpKind.INC_PTR, Math.abs(offset)));
-          }
+          // if (offset !== 0) {
+          //   ops.push(createOpcode(offset < 0 ? OpKind.DEC_PTR : OpKind.INC_PTR, Math.abs(offset)));
+          // }
 
-          if (offset === 0 && isPure) {
-            let update_loop_counter = 0;
-            let offset = 0;
+          // if (offset === 0 && isPure) {
+          //   let update_loop_counter = 0;
+          //   let offset = 0;
 
-            let p = open_bracket_offset + 1;
+          //   let p = open_bracket_offset + 1;
 
-            while (p < ops.length) {
-              const op = ops[p];
+          //   while (p < ops.length) {
+          //     const op = ops[p];
 
-              if (op.kind === OpKind.INC_OFFSET) {
-                offset += op.argument;
-              } else if (op.kind === OpKind.DEC_OFFSET) {
-                offset -= op.argument;
-              }
+          //     if (op.kind === OpKind.INC_OFFSET) {
+          //       offset += op.argument;
+          //     } else if (op.kind === OpKind.DEC_OFFSET) {
+          //       offset -= op.argument;
+          //     }
 
-              if (offset === 0) {
-                if (op.kind === OpKind.INC_DATA) {
-                  update_loop_counter += op.argument;
-                } else if (op.kind === OpKind.DEC_DATA) {
-                  update_loop_counter -= op.argument;
-                }
-              }
+          //     if (offset === 0) {
+          //       if (op.kind === OpKind.INC_DATA) {
+          //         update_loop_counter += op.argument;
+          //       } else if (op.kind === OpKind.DEC_DATA) {
+          //         update_loop_counter -= op.argument;
+          //       }
+          //     }
 
-              p += 1;
-            }
+          //     p += 1;
+          //   }
 
-            if (Math.abs(update_loop_counter) === 1) {
-              let p = open_bracket_offset + 1 + Number(ops[open_bracket_offset + 1].kind === OpKind.DEC_DATA);
-              const end = ops.length - Number(ops[ops.length - 1].kind === OpKind.DEC_DATA);
+          //   if (Math.abs(update_loop_counter) === 1) {
+          //     let p = open_bracket_offset + 1 + Number(ops[open_bracket_offset + 1].kind === OpKind.DEC_DATA);
+          //     const end = ops.length - Number(ops[ops.length - 1].kind === OpKind.DEC_DATA);
 
-              if (p > open_bracket_offset + 1 || end < ops.length) {
-                const start = createOpcode(OpKind.DATA_LOOP, 0);
+          //     if (p > open_bracket_offset + 1 || end < ops.length) {
+          //       const start = createOpcode(OpKind.DATA_LOOP, 0);
 
-                optimized_loop.push(start);
+          //       optimized_loop.push(start);
 
-                while (p < end) {
-                  const op = ops[p];
+          //       while (p < end) {
+          //         const op = ops[p];
 
-                  if (op.kind === OpKind.INC_DATA) {
-                      optimized_loop.push(createOpcode(OpKind.DATA_LOOP_ADD, op.argument));
-                  } else if (op.kind === OpKind.DEC_DATA) {
-                    optimized_loop.push(createOpcode(OpKind.DATA_LOOP_SUB, op.argument));
-                  } else {
-                    optimized_loop.push(op);
-                  }
+          //         if (op.kind === OpKind.INC_DATA) {
+          //             optimized_loop.push(createOpcode(OpKind.DATA_LOOP_ADD, op.argument));
+          //         } else if (op.kind === OpKind.DEC_DATA) {
+          //           optimized_loop.push(createOpcode(OpKind.DATA_LOOP_SUB, op.argument));
+          //         } else {
+          //           optimized_loop.push(op);
+          //         }
 
-                  p += 1;
-                }
+          //         p += 1;
+          //       }
 
-                optimized_loop.push(createOpcode(OpKind.DATA_LOOP_END, open_bracket_offset));
-                ops = ops.slice(0, open_bracket_offset).concat(optimized_loop);
+          //       optimized_loop.push(createOpcode(OpKind.DATA_LOOP_END, open_bracket_offset));
+          //       ops = ops.slice(0, open_bracket_offset).concat(optimized_loop);
 
-                start.argument = ops.length - 1;
-              } else {
-                ops[open_bracket_offset].argument = ops.length;
-                ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, open_bracket_offset));
-              }
-            } else {
+          //       start.argument = ops.length - 1;
+          //     } else {
+          //       ops[open_bracket_offset].argument = ops.length;
+          //       ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, open_bracket_offset));
+          //     }
+          //   } else {
               // Loop wasn't optimized, so proceed emitting the back-jump to ops. We
               // have the offset of the matching '['. We can use it to create a new
               // jump op for the ']' we're handling, as well as patch up the offset of
               // the matching '['.
-                ops[open_bracket_offset].argument = ops.length;
-                ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, open_bracket_offset));
-            }
+                // ops[open_bracket_offset].argument = ops.length;
+                // ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, open_bracket_offset));
+            // }
 
-          } else {
+          // } else {
         // Loop wasn't optimized, so proceed emitting the back-jump to ops. We
         // have the offset of the matching '['. We can use it to create a new
         // jump op for the ']' we're handling, as well as patch up the offset of
         // the matching '['.
           ops[open_bracket_offset].argument = ops.length;
           ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, open_bracket_offset));
-        }
+        // }
       } else {
         // Replace this whole loop with optimized_loop.
         ops = ops.slice(0, open_bracket_offset).concat(optimized_loop);
@@ -255,26 +256,26 @@ export function translate_program(tokens: Array<string>): Array<Opcode> {
         kind = OpKind.INC_PTR;
         break;
       case '<': {
-        const optim = optimize_range_update(ops, ops.length - 1);
+        // const optim = optimize_range_update(ops, ops.length - 1);
 
-        if (optim.length && optim[0].argument === num_repeats) {
-          ops = ops.slice(0, ops.length - (optim[0].argument * 2)).concat(optim);
+        // if (optim.length && optim[0].argument === num_repeats) {
+        //   ops = ops.slice(0, ops.length - (optim[0].argument * 2)).concat(optim);
 
-          continue;
-        }
+        //   continue;
+        // }
 
         kind = OpKind.DEC_PTR;
         break;
       }
       case '+': {
-        const prev_op = ops.length > 0 ? ops[ops.length - 1] : null;
+        // const prev_op = ops.length > 0 ? ops[ops.length - 1] : null;
 
-        if (prev_op && prev_op.kind === OpKind.LOOP_SET_TO_ZERO) {
-          prev_op.kind = OpKind.SET_DATA;
-          prev_op.argument = num_repeats;
+        // if (prev_op && prev_op.kind === OpKind.LOOP_SET_TO_ZERO) {
+        //   prev_op.kind = OpKind.SET_DATA;
+        //   prev_op.argument = num_repeats;
 
-          continue;
-        }
+        //   continue;
+        // }
 
         kind = OpKind.INC_DATA;
         break;
@@ -294,6 +295,108 @@ export function translate_program(tokens: Array<string>): Array<Opcode> {
       ops.push(createOpcode(kind, num_repeats));
     }
   }
+
+  return ops;
+}
+
+function parse_to_opcodes(tokens: Array<string>): Array<Opcode> {
+  let pc = 0;
+  let program_size = tokens.length;
+  let ops: Array<Opcode> = [];
+
+  while (pc < program_size) {
+    const instruction = tokens[pc];
+
+    if (instruction == '[') {
+      ops.push(createOpcode(OpKind.JUMP_IF_DATA_ZERO, 0));
+      pc++;
+    } else if (instruction == ']') {
+      ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, 0));
+      pc++;
+    } else {
+      const start = pc++;
+
+      while (pc < program_size && tokens[pc] === instruction) {
+        pc++;
+      }
+
+      const num_repeats = pc - start;
+
+      let kind = OpKind.INVALID_OP;
+      switch (instruction) {
+        case '>': {
+          kind = OpKind.INC_PTR;
+          break;
+        }
+        case '<': {
+          kind = OpKind.DEC_PTR;
+          break;
+        }
+        case '+': {
+          kind = OpKind.INC_DATA;
+          break;
+        }
+        case '-': {
+          kind = OpKind.DEC_DATA;
+          break;
+        }
+        case ',': {
+          kind = OpKind.READ_STDIN;
+          break;
+        }
+        case '.': {
+          kind = OpKind.WRITE_STDOUT;
+          break;
+        }
+
+        default: { console.warn(`"bad char '${instruction}' at pc=${start}`); }
+      }
+
+      ops.push(createOpcode(kind, num_repeats));
+    }
+  }
+
+  return ops;
+}
+
+function path_jumptable(ops: Array<Opcode>): Array<Opcode> {
+  let pc = 0;
+  let program_size = ops.length;
+
+  while (pc < program_size) {
+    const instruction = ops[pc];
+
+    if (instruction.kind === OpKind.JUMP_IF_DATA_ZERO) {
+      let bracket_nesting = 1;
+      let seek = pc;
+
+      while (bracket_nesting && ++seek < program_size) {
+        if (ops[seek].kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
+          bracket_nesting--;
+        } else if (ops[seek].kind == OpKind.JUMP_IF_DATA_ZERO) {
+          bracket_nesting++;
+        }
+      }
+
+      if (!bracket_nesting) {
+        ops[seek].argument = pc;
+        ops[pc].argument = seek;
+      } else {
+        console.warn(`unmatched '[' at pc=${pc}`);
+      }
+
+    }
+
+    pc++;
+  }
+
+  return ops;
+}
+
+export function translate_program(tokens: Array<string>): Array<Opcode> {
+  let ops = parse_to_opcodes(tokens);
+
+  path_jumptable(ops);
 
   return ops;
 }
