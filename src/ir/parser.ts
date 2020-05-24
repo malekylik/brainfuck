@@ -1,5 +1,8 @@
 import { OpKind } from './opcode-kinds';
 import { Opcode, createOpcode } from './opcode';
+import { OptimizationKind } from './optimization-kinds';
+
+type optimize_loop_function = (ops: Array<Opcode>, loop_start: number, loop_end: number) => Array<Opcode>;
 
 // Optimizes a loop that starts at loop_start (the opening JUMP_IF_DATA_ZERO).
 // The loop runs until the end of ops (implicitly there's a back-jump after the
@@ -359,7 +362,90 @@ function parse_to_opcodes(tokens: Array<string>): Array<Opcode> {
   return ops;
 }
 
-function path_jumptable(ops: Array<Opcode>): Array<Opcode> {
+function optimize_loop_move_data(ops: Array<Opcode>, loop_start: number, loop_end: number): Array<Opcode> {
+  const new_ops = [];
+
+ if (loop_end - loop_start === 5) {
+    // Detect patterns: -<+> and ->+<
+    if (
+        ops[loop_start + 1].kind === OpKind.DEC_DATA &&
+        ops[loop_start + 3].kind === OpKind.INC_DATA &&
+        ops[loop_start + 1].argument === 1 &&
+        ops[loop_start + 3].argument === 1
+      )
+    {
+      if (ops[loop_start + 2].kind === OpKind.INC_PTR &&
+        ops[loop_start + 4].kind === OpKind.DEC_PTR &&
+        ops[loop_start + 2].argument === ops[loop_start + 4].argument) {
+        new_ops.push(createOpcode(OpKind.LOOP_MOVE_DATA, ops[loop_start + 2].argument));
+      } else if (ops[loop_start + 2].kind === OpKind.DEC_PTR &&
+          ops[loop_start + 4].kind === OpKind.INC_PTR &&
+          ops[loop_start + 2].argument === ops[loop_start + 4].argument
+      ) {
+        new_ops.push(
+        createOpcode(OpKind.LOOP_MOVE_DATA, -ops[loop_start + 2].argument));
+      }
+    }
+  }
+
+  return new_ops;
+}
+
+const c1_loop_optimizers: Array<optimize_loop_function> = [
+  optimize_loop_move_data,
+];
+
+function optimize(ops: Array<Opcode>, optimization_kind: OptimizationKind): Array<Opcode> {
+  if (optimization_kind === OptimizationKind.C0) {
+    return ops;
+  }
+
+  if (optimization_kind === OptimizationKind.C1) {
+    let pc = 0;
+    const open_bracket_stack = [];
+
+    while (pc < ops.length) {
+      const instruction = ops[pc];
+
+      if (instruction.kind === OpKind.JUMP_IF_DATA_ZERO) {
+        open_bracket_stack.push(pc);
+        pc++;
+      } else if (instruction.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
+        if (!open_bracket_stack.length) {
+          console.warn(`unmatched closing ']' at pc=${pc}`)
+        }
+
+        const open_bracket_offset = open_bracket_stack.pop();
+
+        let optimized_loop: Array<Opcode> = [];
+
+        let current_optimizer = 0;
+        while (optimized_loop.length === 0 && current_optimizer < c1_loop_optimizers.length) {
+          optimized_loop = c1_loop_optimizers[current_optimizer](ops, open_bracket_offset, pc);
+
+          current_optimizer++;
+        }
+
+        if (optimized_loop.length !== 0) {
+          const start = ops.slice(0, open_bracket_offset);
+          const end = ops.slice(pc + 1);
+
+          pc = start.length + optimized_loop.length;
+
+          ops = start.concat(optimized_loop).concat(end);
+        } else {
+          pc++;
+        }
+      } else {
+        pc++;
+      }
+    }
+  }
+
+  return ops;
+}
+
+function path_jumptable(ops: Array<Opcode>): void {
   let pc = 0;
   let program_size = ops.length;
 
@@ -389,12 +475,12 @@ function path_jumptable(ops: Array<Opcode>): Array<Opcode> {
 
     pc++;
   }
-
-  return ops;
 }
 
-export function translate_program(tokens: Array<string>): Array<Opcode> {
+export function translate_program(tokens: Array<string>, optimization_kind: OptimizationKind): Array<Opcode> {
   let ops = parse_to_opcodes(tokens);
+
+  ops = optimize(ops, optimization_kind);
 
   path_jumptable(ops);
 
