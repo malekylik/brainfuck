@@ -362,6 +362,37 @@ function parse_to_opcodes(tokens: Array<string>): Array<Opcode> {
   return ops;
 }
 
+function optimize_loop_set_to_zero(ops: Array<Opcode>, loop_start: number, loop_end: number): Array<Opcode> {
+  const new_ops = [];
+
+  if (loop_end - loop_start === 2) {
+    const repeated_op = ops[loop_start + 1];
+
+    if (repeated_op.kind === OpKind.INC_DATA || repeated_op.kind === OpKind.DEC_DATA) {
+      new_ops.push(createOpcode(OpKind.LOOP_SET_TO_ZERO, 0));
+    }
+  }
+
+  return new_ops;
+}
+
+function optimize_loop_move_ptr(ops: Array<Opcode>, loop_start: number, loop_end: number): Array<Opcode> {
+  const new_ops = [];
+
+  if (loop_end - loop_start === 2) {
+    const repeated_op = ops[loop_start + 1];
+
+    if (repeated_op.kind === OpKind.INC_PTR || repeated_op.kind === OpKind.DEC_PTR) {
+      new_ops.push(
+        createOpcode(OpKind.LOOP_MOVE_PTR, repeated_op.kind === OpKind.INC_PTR
+                      ? repeated_op.argument
+                      : -repeated_op.argument));
+    }
+  }
+
+  return new_ops;
+}
+
 function optimize_loop_move_data(ops: Array<Opcode>, loop_start: number, loop_end: number): Array<Opcode> {
   const new_ops = [];
 
@@ -392,6 +423,8 @@ function optimize_loop_move_data(ops: Array<Opcode>, loop_start: number, loop_en
 }
 
 const c1_loop_optimizers: Array<optimize_loop_function> = [
+  optimize_loop_set_to_zero,
+  optimize_loop_move_ptr,
   optimize_loop_move_data,
 ];
 
