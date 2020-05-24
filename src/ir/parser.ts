@@ -53,6 +53,7 @@ function optimize_loop(ops: Array<Opcode>, loop_start: number): Array<Opcode> {
 function optimize_range_update(ops: Array<Opcode>, dec_ptr_strt: number): Array<Opcode> {
   const new_ops = [];
 
+  // [-]>[-]>[-]>[-]>[-]>[-]>[-]>[-]>[-]<<<<<<<<<
   let dec_ptr = dec_ptr_strt;
   while (
     dec_ptr - 2 >= 0 &&
@@ -422,6 +423,13 @@ function optimize_loop_move_data(ops: Array<Opcode>, loop_start: number, loop_en
   return new_ops;
 }
 
+function update_ops(ops: Array<Opcode>, optimized_loop: Array<Opcode>, loop_start: number, loop_end: number): Array<Opcode> {
+  const start = ops.slice(0, loop_start);
+  const end = ops.slice(loop_end + 1);
+
+  return start.concat(optimized_loop).concat(end);
+}
+
 const c1_loop_optimizers: Array<optimize_loop_function> = [
   optimize_loop_set_to_zero,
   optimize_loop_move_ptr,
@@ -460,15 +468,37 @@ function optimize(ops: Array<Opcode>, optimization_kind: OptimizationKind): Arra
         }
 
         if (optimized_loop.length !== 0) {
-          const start = ops.slice(0, open_bracket_offset);
-          const end = ops.slice(pc + 1);
-
-          pc = start.length + optimized_loop.length;
-
-          ops = start.concat(optimized_loop).concat(end);
+          ops = update_ops(ops, optimized_loop, open_bracket_offset, pc);
+          pc = open_bracket_offset + optimized_loop.length;
         } else {
           pc++;
         }
+      } else {
+        pc++;
+      }
+    }
+  }
+
+  if (optimization_kind === OptimizationKind.C1) {
+    let pc = 0;
+    const open_bracket_stack = [];
+
+    while (pc < ops.length) {
+      const instruction = ops[pc];
+
+      if (instruction.kind === OpKind.DEC_PTR) {
+        open_bracket_stack.push(pc);
+
+        // boost chrome performance from 105s 103ms to 18s 624ms
+        // todo: check the reason
+        const optimized_loop = optimize_range_update(ops, pc - 1);
+
+        if (optimized_loop.length !== 0 && optimized_loop[0].argument === instruction.argument) {
+          ops = update_ops(ops, optimized_loop, pc - (optimized_loop[0].argument * 2), pc);
+          continue;
+        }
+
+        pc++;
       } else {
         pc++;
       }
