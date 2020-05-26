@@ -1,8 +1,7 @@
 import { OpKind } from './opcode-kinds';
 import { Opcode, createOpcode } from './opcode';
 import { OptimizationKind } from './optimization-kinds';
-
-type optimize_loop_function = (ops: Array<Opcode>, loop_start: number, loop_end: number) => Array<Opcode>;
+import { optimize } from './optimization';
 
 // Optimizes a loop that starts at loop_start (the opening JUMP_IF_DATA_ZERO).
 // The loop runs until the end of ops (implicitly there's a back-jump after the
@@ -45,27 +44,6 @@ function optimize_loop(ops: Array<Opcode>, loop_start: number): Array<Opcode> {
         createOpcode(OpKind.LOOP_MOVE_DATA, -ops[loop_start + 2].argument));
       }
     }
-  }
-
-  return new_ops;
-}
-
-function optimize_range_update(ops: Array<Opcode>, dec_ptr_strt: number): Array<Opcode> {
-  const new_ops = [];
-
-  // [-]>[-]>[-]>[-]>[-]>[-]>[-]>[-]>[-]<<<<<<<<<
-  let dec_ptr = dec_ptr_strt;
-  while (
-    dec_ptr - 2 >= 0 &&
-    ops[dec_ptr - 0].kind === OpKind.LOOP_SET_TO_ZERO &&
-    ops[dec_ptr - 1].kind === OpKind.INC_PTR &&
-    ops[dec_ptr - 1].argument === 1)
-  {
-    dec_ptr -= 2;
-  }
-
-  if (dec_ptr_strt - dec_ptr > 3) {
-    new_ops.push(createOpcode(OpKind.RESET_DATA_RANGE, (dec_ptr_strt - dec_ptr) / 2));
   }
 
   return new_ops;
@@ -357,151 +335,6 @@ function parse_to_opcodes(tokens: Array<string>): Array<Opcode> {
       }
 
       ops.push(createOpcode(kind, num_repeats));
-    }
-  }
-
-  return ops;
-}
-
-function optimize_loop_set_to_zero(ops: Array<Opcode>, loop_start: number, loop_end: number): Array<Opcode> {
-  const new_ops = [];
-
-  if (loop_end - loop_start === 2) {
-    const repeated_op = ops[loop_start + 1];
-
-    if (repeated_op.kind === OpKind.INC_DATA || repeated_op.kind === OpKind.DEC_DATA) {
-      new_ops.push(createOpcode(OpKind.LOOP_SET_TO_ZERO, 0));
-    }
-  }
-
-  return new_ops;
-}
-
-function optimize_loop_move_ptr(ops: Array<Opcode>, loop_start: number, loop_end: number): Array<Opcode> {
-  const new_ops = [];
-
-  if (loop_end - loop_start === 2) {
-    const repeated_op = ops[loop_start + 1];
-
-    if (repeated_op.kind === OpKind.INC_PTR || repeated_op.kind === OpKind.DEC_PTR) {
-      new_ops.push(
-        createOpcode(OpKind.LOOP_MOVE_PTR, repeated_op.kind === OpKind.INC_PTR
-                      ? repeated_op.argument
-                      : -repeated_op.argument));
-    }
-  }
-
-  return new_ops;
-}
-
-function optimize_loop_move_data(ops: Array<Opcode>, loop_start: number, loop_end: number): Array<Opcode> {
-  const new_ops = [];
-
- if (loop_end - loop_start === 5) {
-    // Detect patterns: -<+> and ->+<
-    if (
-        ops[loop_start + 1].kind === OpKind.DEC_DATA &&
-        ops[loop_start + 3].kind === OpKind.INC_DATA &&
-        ops[loop_start + 1].argument === 1 &&
-        ops[loop_start + 3].argument === 1
-      )
-    {
-      if (ops[loop_start + 2].kind === OpKind.INC_PTR &&
-        ops[loop_start + 4].kind === OpKind.DEC_PTR &&
-        ops[loop_start + 2].argument === ops[loop_start + 4].argument) {
-        new_ops.push(createOpcode(OpKind.LOOP_MOVE_DATA, ops[loop_start + 2].argument));
-      } else if (ops[loop_start + 2].kind === OpKind.DEC_PTR &&
-          ops[loop_start + 4].kind === OpKind.INC_PTR &&
-          ops[loop_start + 2].argument === ops[loop_start + 4].argument
-      ) {
-        new_ops.push(
-        createOpcode(OpKind.LOOP_MOVE_DATA, -ops[loop_start + 2].argument));
-      }
-    }
-  }
-
-  return new_ops;
-}
-
-function update_ops(ops: Array<Opcode>, optimized_loop: Array<Opcode>, loop_start: number, loop_end: number): Array<Opcode> {
-  const start = ops.slice(0, loop_start);
-  const end = ops.slice(loop_end + 1);
-
-  return start.concat(optimized_loop).concat(end);
-}
-
-const c1_loop_optimizers: Array<optimize_loop_function> = [
-  optimize_loop_set_to_zero,
-  optimize_loop_move_ptr,
-  optimize_loop_move_data,
-];
-
-function optimize(ops: Array<Opcode>, optimization_kind: OptimizationKind): Array<Opcode> {
-  if (optimization_kind === OptimizationKind.C0) {
-    return ops;
-  }
-
-  if (optimization_kind === OptimizationKind.C1) {
-    let pc = 0;
-    const open_bracket_stack = [];
-
-    while (pc < ops.length) {
-      const instruction = ops[pc];
-
-      if (instruction.kind === OpKind.JUMP_IF_DATA_ZERO) {
-        open_bracket_stack.push(pc);
-        pc++;
-      } else if (instruction.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
-        if (!open_bracket_stack.length) {
-          console.warn(`unmatched closing ']' at pc=${pc}`)
-        }
-
-        const open_bracket_offset = open_bracket_stack.pop();
-
-        let optimized_loop: Array<Opcode> = [];
-
-        let current_optimizer = 0;
-        while (optimized_loop.length === 0 && current_optimizer < c1_loop_optimizers.length) {
-          optimized_loop = c1_loop_optimizers[current_optimizer](ops, open_bracket_offset, pc);
-
-          current_optimizer++;
-        }
-
-        if (optimized_loop.length !== 0) {
-          ops = update_ops(ops, optimized_loop, open_bracket_offset, pc);
-          pc = open_bracket_offset + optimized_loop.length;
-        } else {
-          pc++;
-        }
-      } else {
-        pc++;
-      }
-    }
-  }
-
-  if (optimization_kind === OptimizationKind.C1) {
-    let pc = 0;
-    const open_bracket_stack = [];
-
-    while (pc < ops.length) {
-      const instruction = ops[pc];
-
-      if (instruction.kind === OpKind.DEC_PTR) {
-        open_bracket_stack.push(pc);
-
-        // boost chrome performance from 105s 103ms to 18s 624ms
-        // todo: check the reason
-        const optimized_loop = optimize_range_update(ops, pc - 1);
-
-        if (optimized_loop.length !== 0 && optimized_loop[0].argument === instruction.argument) {
-          ops = update_ops(ops, optimized_loop, pc - (optimized_loop[0].argument * 2), pc);
-          continue;
-        }
-
-        pc++;
-      } else {
-        pc++;
-      }
     }
   }
 
