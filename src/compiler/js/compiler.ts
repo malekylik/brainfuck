@@ -22,6 +22,7 @@ function offsetDataptr(dataptr: string, offset: number): string {
 function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
   const memoryName = '__m__';
   const dataptr = 'p';
+  const cached_dataptr = 'cp';
   const inFName = inF.name;
   const outFName = outF.name;
   const code = [];
@@ -254,6 +255,22 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
               encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}] * ${op.argument};\n`)
             );
           }
+
+          break;
+        }
+
+        case OpKind.STORE_DATAPTR: {
+          code.push(
+            encode(`${cached_dataptr} = ${dataptr};\n`)
+          );
+
+          break;
+        }
+
+        case OpKind.GET_DATAPTR: {
+          code.push(
+            encode(`${dataptr} = ${cached_dataptr};\n`)
+          );
 
           break;
         }

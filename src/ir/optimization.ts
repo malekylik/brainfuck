@@ -366,6 +366,159 @@ function optimize_c2(ops: Array<Opcode>): Array<Opcode> {
     }
   }
 
+  // optimize loop scan
+  {
+    let pc = 0;
+    let loop_depth = 0;
+
+    let first_loop_scan = null;
+    let second_loop_scan = null;
+
+    while (pc < ops.length) {
+      const op = ops[pc];
+
+      if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
+        loop_depth += 1;
+
+        first_loop_scan = null;
+        second_loop_scan = null;
+      } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
+        loop_depth -= 1;
+
+        first_loop_scan = null;
+        second_loop_scan = null;
+      } else if (op.kind === OpKind.LOOP_MOVE_PTR) {
+        if (first_loop_scan === null) {
+          first_loop_scan = {
+            opcode_index: pc,
+            loop_depth,
+          };
+        } else if (second_loop_scan === null) {
+          second_loop_scan = {
+            opcode_index: pc,
+            loop_depth,
+          };
+
+
+          const ops_betwen = ops.slice(first_loop_scan.opcode_index + 1, second_loop_scan.opcode_index);
+          const isOffsetZero =
+            ops_betwen
+              .filter(op => op.kind === OpKind.INC_PTR || op.kind === OpKind.DEC_PTR)
+              .reduce((prev, op) => op.kind === OpKind.INC_PTR ? prev + op.argument : prev - op.argument, 0) === 0;
+          const total_offset =
+            ops_betwen
+              .filter(op => op.kind === OpKind.INC_OFFSET || op.kind === OpKind.DEC_OFFSET)
+              .reduce((prev, op) => op.kind === OpKind.INC_OFFSET ? prev + op.argument : prev - op.argument, 0);
+          const isLoopsComplementary = (ops[first_loop_scan.opcode_index].argument + ops[second_loop_scan.opcode_index].argument) === 0;
+
+          if (total_offset === ops[second_loop_scan.opcode_index].argument) {
+            debugger;
+          }
+
+          if (isOffsetZero && isLoopsComplementary && total_offset === ops[second_loop_scan.opcode_index].argument) {
+            // loop_end - 1 - we want remove end of loop
+            ops = update_ops(ops, [createOpcode(OpKind.STORE_DATAPTR, 0)], first_loop_scan.opcode_index, first_loop_scan.opcode_index - 1);
+
+            second_loop_scan.opcode_index++;
+
+            // loop_end - 1 - we want remove end of loop
+            ops = update_ops(ops, [createOpcode(OpKind.GET_DATAPTR, 0)], second_loop_scan.opcode_index, second_loop_scan.opcode_index - 1);
+
+            pc += 2;
+          }
+
+          first_loop_scan = null;
+          second_loop_scan = null;
+        }
+      }
+      
+
+      // if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
+      //   loop_depth += 1;
+
+      //   if (first_loop_scan === null) {
+      //     first_loop_scan = {
+      //       loop_start: pc,
+      //       loop_end: -1,
+      //       loop_depth,
+      //     }
+      //   } else if (second_loop_scan === null) {
+      //     second_loop_scan = {
+      //       loop_start: pc,
+      //       loop_end: -1,
+      //       loop_depth,
+      //     }
+      //   }
+      // }
+
+      // if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
+      //   loop_depth -= 1;
+
+      //   if (second_loop_scan !== null) {
+      //     second_loop_scan.loop_end = pc;
+
+
+      //     // check loops
+      //     {
+      //       // const ops_betwen = ops.slice(first_loop_scan.loop_end + 1, second_loop_scan.loop_start);
+      //       // const isOffsetZero =
+      //       //   ops_betwen
+      //       //     .filter(op => op.kind === OpKind.INC_PTR || op.kind === OpKind.DEC_PTR)
+      //       //     .reduce((prev, op) => op.kind === OpKind.INC_PTR ? prev + op.argument : prev - op.argument, 0) === 0 &&
+      //       //   ops_betwen
+      //       //     .filter(op => op.kind === OpKind.INC_OFFSET || op.kind === OpKind.DEC_OFFSET)
+      //       //     .reduce((prev, op) => op.kind === OpKind.INC_OFFSET ? prev + op.argument : prev - op.argument, 0) === 0
+            
+      //       // const firstLoopUpdater = ops[first_loop_scan.loop_start + 1];
+      //       // const isFirstLoopScanLoop =
+      //       //   first_loop_scan.loop_end - first_loop_scan.loop_start === 2 &&
+      //       //   (firstLoopUpdater.kind === OpKind.INC_PTR || firstLoopUpdater.kind === OpKind.DEC_PTR);
+
+      //       // const secondLoopUpdater = ops[second_loop_scan.loop_start + 1];
+      //       // const isSecondLoopScanLoop =
+      //       //   second_loop_scan.loop_end - second_loop_scan.loop_start === 2 &&
+      //       //   (secondLoopUpdater.kind === OpKind.INC_PTR || secondLoopUpdater.kind === OpKind.DEC_PTR);
+            
+      //       // if (isFirstLoopScanLoop && isSecondLoopScanLoop && isOffsetZero) {
+      //       //   console.log('isOffsetZero', isOffsetZero);
+      //       // }
+
+      //       // if (
+      //       //   (second_loop_scan.loop_end - second_loop_scan.loop_start === 2) &&
+      //       //   (
+      //       //     ops[second_loop_scan.loop_start + 1].kind === OpKind.INC_PTR ||
+      //       //     ops[second_loop_scan.loop_start + 1].kind === OpKind.DEC_PTR
+      //       //   ) &&
+
+      //       //   (
+      //       //     (
+      //       //       ops[second_loop_scan.loop_start + 1].kind === OpKind.INC_PTR ||
+      //       //       ops[second_loop_scan.loop_start + 1].kind === OpKind.DEC_PTR
+      //       //     ) ||
+      //       //     (
+      //       //       ops[second_loop_scan.loop_end - 1].kind === OpKind.INC_PTR ||
+      //       //       ops[second_loop_scan.loop_end - 1].kind === OpKind.DEC_PTR
+      //       //     )
+      //       //   )
+
+      //       //   &&
+
+      //       // ) {
+
+      //       // }
+      //     }
+
+      //     first_loop_scan = null;
+      //     second_loop_scan = null;
+      //   } else if (first_loop_scan !== null) {
+      //     first_loop_scan.loop_end = pc;
+      //   }
+      // }
+
+      pc++;
+    }
+  }
+
   return ops;
 }
 
