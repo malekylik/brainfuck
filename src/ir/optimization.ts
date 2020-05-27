@@ -99,6 +99,7 @@ const c1_loop_optimizers: Array<optimize_loop_function> = [
 ];
 
 function optimize_c1(ops: Array<Opcode>): Array<Opcode> {
+  // c1_loop_optimizers
   {
     let pc = 0;
     const open_bracket_stack = [];
@@ -137,6 +138,7 @@ function optimize_c1(ops: Array<Opcode>): Array<Opcode> {
     }
   }
 
+  // optimize_range_update
   {
     let pc = 0;
     const open_bracket_stack = [];
@@ -157,6 +159,31 @@ function optimize_c1(ops: Array<Opcode>): Array<Opcode> {
         }
 
         pc++;
+      } else {
+        pc++;
+      }
+    }
+  }
+
+  // set_data
+  {
+    let pc = 0;
+
+    while (pc < ops.length) {
+      const instruction = ops[pc];
+
+      if (instruction.kind === OpKind.INC_DATA) {
+        const prev_op = pc > 0 ? ops[pc - 1] : null;
+
+        if (prev_op && prev_op.kind === OpKind.LOOP_SET_TO_ZERO) {
+          prev_op.kind = OpKind.SET_DATA;
+          prev_op.argument = ops[pc].argument;
+
+          // remove Opcode INC_DATA
+          ops = update_ops(ops, [], pc, pc);
+        } else {
+          pc++;
+        }
       } else {
         pc++;
       }
@@ -226,152 +253,118 @@ function optimize_c2(ops: Array<Opcode>): Array<Opcode> {
 
         const open_bracket_offset = open_bracket_stack.pop();
 
+        const new_ops = optimize_ptr_shift(ops, open_bracket_offset, pc);
 
-          const new_ops = optimize_ptr_shift(ops, open_bracket_offset, pc);
+        pc += Math.abs(ops.length - new_ops.length) + 1;
 
-          pc += Math.abs(ops.length - new_ops.length) + 1;
-
-          ops = new_ops;
+        ops = new_ops;
       } else {
         pc++;
       }
     }
 
-    ops = optimize_ptr_shift(ops, 0, ops.length);
+    // ops = optimize_ptr_shift(ops, 0, ops.length);
 
-    if (ops[ops.length - 1].kind === OpKind.INC_PTR || ops[ops.length - 1].kind === OpKind.DEC_PTR) {
-      ops = ops.slice(0, ops.length - 1);
-    }
+    // if (ops[ops.length - 1].kind === OpKind.INC_PTR || ops[ops.length - 1].kind === OpKind.DEC_PTR) {
+    //   ops = ops.slice(0, ops.length - 1);
+    // }
   }
 
-  // let offset = 0;
-  // let loop_depth = 0;
-  // let is_pure = true;
-  // let p = open_bracket_offset + 1;
+  // optimize DATA_LOOP
+  {
+    let pc = 0;
 
-  // const buffer_size = 60000;
-  // const loop_count = new Uint8Array(buffer_size);
-  // const middle = (buffer_size / 2) | 0;
+    const open_bracket_stack: Array<number> = [];
 
-  // while (p < ops.length) {
-  //   const op = ops[p];
+    while (pc < ops.length) {
+      const op = ops[pc];
 
-  //   if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
-  //     is_pure = is_pure && false;
-  //     loop_depth += 1;
-  //   } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
-  //     loop_depth -= 1;
-  //   }
+      if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
+        open_bracket_stack.push(pc);
 
-  //   if (loop_depth === 0 && op.kind === OpKind.INC_PTR) {
-  //     op.kind = OpKind.INC_OFFSET;
+        pc++;
+      } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
+        if (!open_bracket_stack.length) {
+          console.warn(`unmatched closing ']' at pc=${pc}`)
+        }
 
-  //     offset += op.argument;
-  //   }
+        const open_bracket_offset = open_bracket_stack.pop();
 
-  //   if (loop_depth === 0 && op.kind === OpKind.DEC_PTR) {
-  //     op.kind = OpKind.DEC_OFFSET;
+        let is_pure = true;
+        let p = open_bracket_offset + 1;
+        let update_loop_counter = null;
+        let update_loop_counter_index = -1;
+        let offset = 0;
 
-  //     offset -= op.argument;
-  //   }
+        while (p < pc && is_pure) {
+          const op = ops[p];
 
-  //   if (loop_depth === 0 && op.kind === OpKind.INC_DATA) {
-  //     loop_count[middle + offset] += op.argument;
-  //   } else if (loop_depth === 0 && op.kind === OpKind.DEC_DATA) {
-  //     loop_count[middle + offset] -= op.argument;
-  //   }
+          if (
+            op.kind === OpKind.JUMP_IF_DATA_ZERO || // if there any inner loop assume current loop is not pure
+            (op.kind === OpKind.INC_PTR || op.kind === OpKind.DEC_PTR)
+          ) {
+            is_pure = false;
+          }
 
-  //   // TO_DO check if this can break optimization
-  //   is_pure = is_pure && !(op.kind === OpKind.LOOP_MOVE_PTR);
-  //   is_pure = is_pure && !(op.kind === OpKind.LOOP_MOVE_DATA);
-  //   is_pure = is_pure && !(op.kind === OpKind.RESET_DATA_RANGE);
+          if (op.kind === OpKind.INC_OFFSET) {
+            offset += op.argument;
+          } else if(op.kind === OpKind.DEC_OFFSET) {
+            offset -= op.argument;
+          }
 
-  //   // check if counter of data_loop updated from outer loop
-  //   if (loop_depth === 0 && op.kind === OpKind.DATA_LOOP && loop_count[middle + offset] !== 0) {
-  //     is_pure = false;
-  //   }
 
-  //   p += 1;
-  // }
+          if (
+            (op.kind === OpKind.INC_DATA || op.kind === OpKind.DEC_DATA) &&
+            offset === 0
+          ) {
+            if (update_loop_counter !== null) {
+              is_pure = false;
+            } {
+              update_loop_counter = op;
+              update_loop_counter_index = p;
+            }
+          }
 
-  // if (offset !== 0) {
-  //   ops.push(createOpcode(offset < 0 ? OpKind.DEC_PTR : OpKind.INC_PTR, Math.abs(offset)));
-  // }
+          // TO_DO check if this can break optimization
+          is_pure = is_pure && !(op.kind === OpKind.LOOP_MOVE_PTR);
+          is_pure = is_pure && !(op.kind === OpKind.LOOP_MOVE_DATA);
+          is_pure = is_pure && !(op.kind === OpKind.RESET_DATA_RANGE);
 
-  //         if (offset === 0 && is_pure) {
-  //           let update_loop_counter = 0;
-  //           let offset = 0;
+          p += 1;
+        }
 
-  //           let p = open_bracket_offset + 1;
+        is_pure = is_pure && (update_loop_counter_index === open_bracket_offset + 1 || update_loop_counter_index === pc - 1);
 
-  //           while (p < ops.length) {
-  //             const op = ops[p];
+        if (is_pure && update_loop_counter !== null) {
+          ops[open_bracket_offset].kind = OpKind.DATA_LOOP;
+          
+          let p = open_bracket_offset + 1;
+          while (p < pc) {
+            const op = ops[p];
 
-  //             if (op.kind === OpKind.INC_OFFSET) {
-  //               offset += op.argument;
-  //             } else if (op.kind === OpKind.DEC_OFFSET) {
-  //               offset -= op.argument;
-  //             }
+            if (update_loop_counter !== op) {
+              if (op.kind === OpKind.INC_DATA) {
+                op.kind = OpKind.DATA_LOOP_ADD;
+              } else if (op.kind === OpKind.DEC_DATA) {
+                op.kind = OpKind.DATA_LOOP_SUB;
+              }
+            }
 
-  //             if (offset === 0) {
-  //               if (op.kind === OpKind.INC_DATA) {
-  //                 update_loop_counter += op.argument;
-  //               } else if (op.kind === OpKind.DEC_DATA) {
-  //                 update_loop_counter -= op.argument;
-  //               }
-  //             }
+            p += 1;
+          }
 
-  //             p += 1;
-  //           }
+          ops[pc].kind = OpKind.DATA_LOOP_END;
 
-  //           if (Math.abs(update_loop_counter) === 1) {
-  //             let p = open_bracket_offset + 1 + Number(ops[open_bracket_offset + 1].kind === OpKind.DEC_DATA);
-  //             const end = ops.length - Number(ops[ops.length - 1].kind === OpKind.DEC_DATA);
-
-  //             if (p > open_bracket_offset + 1 || end < ops.length) {
-  //               const start = createOpcode(OpKind.DATA_LOOP, 0);
-
-  //               optimized_loop.push(start);
-
-  //               while (p < end) {
-  //                 const op = ops[p];
-
-  //                 if (op.kind === OpKind.INC_DATA) {
-  //                     optimized_loop.push(createOpcode(OpKind.DATA_LOOP_ADD, op.argument));
-  //                 } else if (op.kind === OpKind.DEC_DATA) {
-  //                   optimized_loop.push(createOpcode(OpKind.DATA_LOOP_SUB, op.argument));
-  //                 } else {
-  //                   optimized_loop.push(op);
-  //                 }
-
-  //                 p += 1;
-  //               }
-
-  //               optimized_loop.push(createOpcode(OpKind.DATA_LOOP_END, open_bracket_offset));
-  //               ops = ops.slice(0, open_bracket_offset).concat(optimized_loop);
-
-  //               start.argument = ops.length - 1;
-  //             } else {
-  //               ops[open_bracket_offset].argument = ops.length;
-  //               ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, open_bracket_offset));
-  //             }
-  //           } else {
-  //             // Loop wasn't optimized, so proceed emitting the back-jump to ops. We
-  //             // have the offset of the matching '['. We can use it to create a new
-  //             // jump op for the ']' we're handling, as well as patch up the offset of
-  //             // the matching '['.
-  //               ops[open_bracket_offset].argument = ops.length;
-  //               ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, open_bracket_offset));
-  //           }
-
-  //         } else {
-  //       // Loop wasn't optimized, so proceed emitting the back-jump to ops. We
-  //       // have the offset of the matching '['. We can use it to create a new
-  //       // jump op for the ']' we're handling, as well as patch up the offset of
-  //       // the matching '['.
-  //       ops[open_bracket_offset].argument = ops.length;
-  //       ops.push(createOpcode(OpKind.JUMP_IF_DATA_NOT_ZERO, open_bracket_offset));
-  //     }
+          // remove update_loop_counter because it will be replaced with just set cell to zero
+          ops = update_ops(ops, [], update_loop_counter_index, update_loop_counter_index);
+        } else {
+          pc++;
+        }
+      } else {
+        pc++;
+      }
+    }
+  }
 
   return ops;
 }
