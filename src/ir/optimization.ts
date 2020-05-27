@@ -411,10 +411,6 @@ function optimize_c2(ops: Array<Opcode>): Array<Opcode> {
               .reduce((prev, op) => op.kind === OpKind.INC_OFFSET ? prev + op.argument : prev - op.argument, 0);
           const isLoopsComplementary = (ops[first_loop_scan.opcode_index].argument + ops[second_loop_scan.opcode_index].argument) === 0;
 
-          if (total_offset === ops[second_loop_scan.opcode_index].argument) {
-            debugger;
-          }
-
           if (isOffsetZero && isLoopsComplementary && total_offset === ops[second_loop_scan.opcode_index].argument) {
             // loop_end - 1 - we want remove end of loop
             ops = update_ops(ops, [createOpcode(OpKind.STORE_DATAPTR, 0)], first_loop_scan.opcode_index, first_loop_scan.opcode_index - 1);
