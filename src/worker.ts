@@ -1,5 +1,6 @@
 import { parse_from_stream } from './utils/parser';
 import { translate_program } from 'ir/parser';
+import { OptimizationKind } from 'ir/optimization-kinds';
 import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
@@ -59,7 +60,7 @@ self.addEventListener('message', (e) => {
       }
 
       if (mode === BrainfuckMode.InterpretWithIR || mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
-        const ops = translate_program(tokens);
+        const ops = translate_program(tokens, OptimizationKind.C2);
         let compile = null;
 
         switch (mode) {

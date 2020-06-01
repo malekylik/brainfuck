@@ -13,10 +13,11 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
   let loop_data_offsets = [];
   const p = unsignedLEB128(0);
   const p_offset = unsignedLEB128(1);
+  const p_cached = unsignedLEB128(2);
 
   code.push(
     ...unsignedLEB128(1),
-    ...unsignedLEB128(2), // 2 of int32
+    ...unsignedLEB128(3), // 2 of int32
     Valtype.i32,
   );
 
@@ -687,6 +688,30 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
               ...unsignedLEB128(0),
             );
           }
+
+          break;
+        }
+
+        case OpKind.STORE_DATAPTR: {
+          code.push(
+            Opcodes.get_local,
+            ...p,
+
+            Opcodes.set_local,
+            ...p_cached,
+          );
+
+          break;
+        }
+
+        case OpKind.GET_DATAPTR: {
+          code.push(
+            Opcodes.get_local,
+            ...p_cached,
+
+            Opcodes.set_local,
+            ...p,
+          );
 
           break;
         }
