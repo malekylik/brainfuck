@@ -2,6 +2,7 @@ import { OpKind } from 'ir/opcode-kinds';
 import { Opcode } from 'ir/opcode';
 import { opKindToChar } from 'ir/utils';
 import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
+import { TextCoder } from 'utils/text-coder';
 
 const txd = new TextDecoder();
 const txe = new TextEncoder();
@@ -25,17 +26,22 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
   const cached_dataptr = 'cp';
   const inFName = inF.name;
   const outFName = outF.name;
-  const code = [];
+  // const code = [];
   const offset_stack = [];
+  const coder = new TextCoder();
   let offset = 0;
   let loop_data_offset = 0;
   let loop_data_offsets = [];
 
   (self as any)[memoryName] = new Uint8Array(30000);
 
-  code.push(
-    encode(`let ${dataptr} = 0;\n`)
+
+  coder.encode(
+    `let ${dataptr} = 0;\n`
   );
+  // code.push(
+  //   encode(`let ${dataptr} = 0;\n`)
+  // );
   // code.push(
   //   encode(`let g = 0;\n`)
   // );
@@ -46,17 +52,23 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
       switch (op.kind) {
         case OpKind.INC_PTR: {
-          code.push(
-            encode(`${dataptr} += ${op.argument};\n`)
+          coder.encode(
+            `${dataptr} += ${op.argument};\n`
           );
+          // code.push(
+          //   encode(`${dataptr} += ${op.argument};\n`)
+          // );
 
           break;
         }
 
         case OpKind.DEC_PTR: {
-          code.push(
-            encode(`${dataptr} -= ${op.argument};\n`)
+          coder.encode(
+            `${dataptr} -= ${op.argument};\n`
           );
+          // code.push(
+          //   encode(`${dataptr} -= ${op.argument};\n`)
+          // );
 
           break;
         }
@@ -74,27 +86,36 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
         }
 
         case OpKind.INC_DATA: {
-          code.push(
-            encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${op.argument};\n`)
+          coder.encode(
+            `${memoryName}[${offsetDataptr(dataptr, offset)}] += ${op.argument};\n`
           );
+          // code.push(
+          //   encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${op.argument};\n`)
+          // );
 
           break;
         }
 
         case OpKind.DEC_DATA: {
-          code.push(
-            encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${op.argument};\n`)
+          coder.encode(
+            `${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${op.argument};\n`
           );
+          // code.push(
+          //   encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${op.argument};\n`)
+          // );
 
           break;
         }
 
         case OpKind.READ_STDIN: {
-          code.push(
-            encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${offsetDataptr(dataptr, offset)}] = ${inFName}();\n`)
+          coder.encode(
+            `for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${offsetDataptr(dataptr, offset)}] = ${inFName}();\n`
           );
+          // code.push(
+          //   encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${offsetDataptr(dataptr, offset)}] = ${inFName}();\n`)
+          // );
 
-          break;
+            break;
           }
 
         case OpKind.WRITE_STDOUT: {
@@ -121,46 +142,67 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
             //     )
             // ); 
 
-            code.push(
-              encode(`${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`)
-            ); 
-          } else {
-            code.push(
-              encode(`for (let i = 0; i < ${op.argument}; i++) ${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`)
+            coder.encode(
+              `${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`
             );
+            // code.push(
+            //   encode(`${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`)
+            // ); 
+          } else {
+            coder.encode(
+              `for (let i = 0; i < ${op.argument}; i++) ${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`
+            );
+            // code.push(
+            //   encode(`for (let i = 0; i < ${op.argument}; i++) ${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`)
+            // );
           }
 
             break;
         }
 
         case OpKind.LOOP_SET_TO_ZERO: {
-          code.push(
-            encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`)
+          coder.encode(
+            `${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`
           );
+          // code.push(
+          //   encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`)
+          // );
 
           break;
         }
 
         case OpKind.LOOP_MOVE_PTR: {
-          code.push(
-            encode(
-              `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n` +
-                `${dataptr} ${op.argument < 0 ? '-' : '+'}= ${Math.abs(op.argument)};\n}\n`
-              )
+          coder.encode(
+            `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n` +
+            `${dataptr} ${op.argument < 0 ? '-' : '+'}= ${Math.abs(op.argument)};\n}\n`
           );
+          // code.push(
+          //   encode(
+          //     `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n` +
+          //       `${dataptr} ${op.argument < 0 ? '-' : '+'}= ${Math.abs(op.argument)};\n}\n`
+          //     )
+          // );
 
           break;
         }
         case OpKind.LOOP_MOVE_DATA: {
           // TO_DO check why 'if' this degradate performance in chrome
-          code.push(
-            encode(
-              // `if (${dataptr} + ${offset + op.argument} >= 0) {\n` +
-              `${memoryName}[${offsetDataptr(dataptr, offset + op.argument)}] += ${memoryName}[${offsetDataptr(dataptr, offset)}];\n` +
-              `${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`
-              // `}\n`
-            )
+          coder.encode(
+            // `if (${dataptr} + ${offset + op.argument} >= 0) {\n` +
+            `${memoryName}[${offsetDataptr(dataptr, offset + op.argument)}] += ${memoryName}[${offsetDataptr(dataptr, offset)}];\n` +
+            `${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`
+            // `}\n`
           );
+
+          // // TO_DO check why 'if' this degradate performance in chrome
+          // code.push(
+          //   encode(
+          //     // `if (${dataptr} + ${offset + op.argument} >= 0) {\n` +
+          //     `${memoryName}[${offsetDataptr(dataptr, offset + op.argument)}] += ${memoryName}[${offsetDataptr(dataptr, offset)}];\n` +
+          //     `${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`
+          //     // `}\n`
+          //   )
+          // );
 
           break;
         }
@@ -168,17 +210,23 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
         case OpKind.JUMP_IF_DATA_ZERO: {
           offset_stack.push(offset);
 
-          code.push(
-            encode(`while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`)
+          coder.encode(
+            `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`
           );
+          // code.push(
+          //   encode(`while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`)
+          // );
 
           break;
         }
 
         case OpKind.JUMP_IF_DATA_NOT_ZERO: {
-          code.push(
-            encode(`}\n`)
+          coder.encode(
+            `}\n`
           );
+          // code.push(
+          //   encode(`}\n`)
+          // );
 
           offset = offset_stack.pop();
 
@@ -187,22 +235,31 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
         case OpKind.RESET_DATA_RANGE: {
           for (let i = 1; i < op.argument + 1; i++) {
-            code.push(
-              encode(`${memoryName}[${dataptr} + ${offset + i}] = `)
+            coder.encode(
+              `${memoryName}[${dataptr} + ${offset + i}] = `
             );
+            // code.push(
+            //   encode(`${memoryName}[${dataptr} + ${offset + i}] = `)
+            // );
           }
 
-          code.push(
-            encode(`${0};\n`)
+          coder.encode(
+            `${0};\n`
           );
+          // code.push(
+          //   encode(`${0};\n`)
+          // );
 
           break;
         }
 
         case OpKind.SET_DATA: {
-          code.push(
-            encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] = ${op.argument};\n`)
+          coder.encode(
+            `${memoryName}[${offsetDataptr(dataptr, offset)}] = ${op.argument};\n`
           );
+          // code.push(
+          //   encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] = ${op.argument};\n`)
+          // );
 
           break;
         }
@@ -210,20 +267,27 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
         case OpKind.DATA_LOOP: {
           loop_data_offset = offset;
           loop_data_offsets.push(loop_data_offset);
-          code.push(
-            encode(`if (${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}]) {\n`)
+          coder.encode(
+            `if (${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}]) {\n`
           );
+          // code.push(
+          //   encode(`if (${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}]) {\n`)
+          // );
 
           break;
         }
 
         case OpKind.DATA_LOOP_END: {
-          code.push(
-            encode(
-              `${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}] = 0;\n` +
-              `}\n`
-            )
+          coder.encode(
+            `${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}] = 0;\n` +
+            `}\n`
           );
+          // code.push(
+          //   encode(
+          //     `${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}] = 0;\n` +
+          //     `}\n`
+          //   )
+          // );
 
           offset = loop_data_offsets.pop();
           loop_data_offset = loop_data_offsets[loop_data_offsets.length - 1];
@@ -233,13 +297,19 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
         case OpKind.DATA_LOOP_ADD: {
           if (op.argument === 1) {
-            code.push(
-              encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}];\n`)
+            coder.encode(
+              `${memoryName}[${offsetDataptr(dataptr, offset)}] += ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}];\n`
             );
+            // code.push(
+            //   encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}];\n`)
+            // );
           } else {
-            code.push(
-              encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}] * ${op.argument};\n`)
+            coder.encode(
+              `${memoryName}[${offsetDataptr(dataptr, offset)}] += ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}] * ${op.argument};\n`
             );
+            // code.push(
+            //   encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}] * ${op.argument};\n`)
+            // );
           }
 
           break;
@@ -247,30 +317,42 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 
         case OpKind.DATA_LOOP_SUB: {
           if (op.argument === 1) {
-            code.push(
-              encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}];\n`)
+            coder.encode(
+              `${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}];\n`
             );
+            // code.push(
+            //   encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}];\n`)
+            // );
           } else {
-            code.push(
-              encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}] * ${op.argument};\n`)
+            coder.encode(
+              `${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}] * ${op.argument};\n`
             );
+            // code.push(
+            //   encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${memoryName}[${offsetDataptr(dataptr, loop_data_offset)}] * ${op.argument};\n`)
+            // );
           }
 
           break;
         }
 
         case OpKind.STORE_DATAPTR: {
-          code.push(
-            encode(`${cached_dataptr} = ${dataptr};\n`)
+          coder.encode(
+            `${cached_dataptr} = ${dataptr};\n`
           );
+          // code.push(
+          //   encode(`${cached_dataptr} = ${dataptr};\n`)
+          // );
 
           break;
         }
 
         case OpKind.GET_DATAPTR: {
-          code.push(
-            encode(`${dataptr} = ${cached_dataptr};\n`)
+          coder.encode(
+            `${dataptr} = ${cached_dataptr};\n`
           );
+          // code.push(
+          //   encode(`${dataptr} = ${cached_dataptr};\n`)
+          // );
 
           break;
         }
@@ -281,7 +363,8 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
       pc++;
     }
 
-  const string = txd.decode(Uint8Array.from(code.flat()));
+  const string = coder.decode();
+  // const string = txd.decode(Uint8Array.from(code.flat()));
   const module = new Function(string);
 
   console.log(string);
