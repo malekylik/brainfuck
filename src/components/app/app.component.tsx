@@ -6,6 +6,7 @@ import { CompilerTimeProfiler } from 'components/compiler-time-profiler/compiler
 import { mandelbrot } from 'consts/programs';
 import { WorkerEvent } from 'consts/worker';
 import { BrainfuckMode } from 'consts/mode';
+import { isWebAssemblySupported } from 'consts/compatibility';
 import { CompilerTimeProfile } from 'types/worker';
 import { converMillisecondToString } from 'utils/time';
 import { modeToString } from 'utils/mode';
@@ -18,7 +19,7 @@ export default function App() {
   const [endTime, setEndTime] = useState('???');
   const [compileTime, setCompileTime] = useState('???');
   const [statMode, setStatMode] = useState('???');
-  const [currentMode, setCurrentMode] = useState(BrainfuckMode.CompileWebAssembly);
+  const [currentMode, setCurrentMode] = useState(isWebAssemblySupported ? BrainfuckMode.CompileWebAssembly : BrainfuckMode.CompileJavaScript);
   const [isRunning, setIsRunning] = useState(false);
 
   const outputRef = useRef(null);

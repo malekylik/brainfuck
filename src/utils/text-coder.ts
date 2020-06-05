@@ -1,3 +1,4 @@
+import { isTextCoderSupported } from 'consts/compatibility';
 import { flat } from './flat';
 
 interface TextCoder {
@@ -8,7 +9,7 @@ interface TextCoder {
 
 let TextCoderImplementation: { new (): TextCoder } = null;
 
-if (self['TextDecoder'] && self['TextEncoder']) {
+if (isTextCoderSupported) {
   const txd = new TextDecoder();
   const txe = new TextEncoder();
 
@@ -17,16 +18,16 @@ if (self['TextDecoder'] && self['TextEncoder']) {
   TextCoderImplementation = class implements TextCoder {
     private lines: Array<Array<number>>;
     private cached: string;
-  
+
     constructor() {
       this.lines = [];
       this.cached = '';
     }
-  
+
     encode(s: string): void {
       this.lines.push(encode(s));
     }
-  
+
     decode(): string {
       if (this.cached.length === 0 && this.lines.length !== 0) {
         this.cached = txd.decode(Uint8Array.from(flat(this.lines)));
