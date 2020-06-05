@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { WorkerMessage, CompilerTimeProfile } from 'types/worker';
 import { WorkerEvent } from 'consts/worker';
 import { BrainfuckMode } from 'consts/mode';
+import { fetch } from 'utils/fetch';
 
 type onWorkerOutHandler = (s: string) => void;
 type onWorkerEndHandler = (time: CompilerTimeProfile, mode: BrainfuckMode) => void;
@@ -12,7 +13,7 @@ export function useWorker(onWorkerOut: onWorkerOutHandler, onWorkerEnd: onWorker
 
   useEffect(() => {
     fetch('./worker.js')
-      .then(res => res.blob())
+      .then(res => { console.log('res', res); return res.blob() })
       .then((workerBlob) => {
         const url = URL.createObjectURL(workerBlob);
         const worker = new Worker(url);
