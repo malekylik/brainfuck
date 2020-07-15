@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { BrainfuckMode } from 'consts/mode';
+import { isWebAssemblySupported } from 'consts/compatibility';
 
 type CompilerModeProps = {
   currentMode: BrainfuckMode,
@@ -31,7 +32,12 @@ export function CompilerMode(props: CompilerModeProps) {
         </p>
         <p>
           <label>WebAssembly</label>
-          <input type='checkbox' checked={currentMode === BrainfuckMode.CompileWebAssembly} onChange={() => setCurrentMode(BrainfuckMode.CompileWebAssembly)} />
+          <input
+            disabled={!isWebAssemblySupported}
+            type='checkbox'
+            checked={currentMode === BrainfuckMode.CompileWebAssembly}
+            onChange={() => setCurrentMode(BrainfuckMode.CompileWebAssembly)}
+          />
         </p>
     </div>
   );
