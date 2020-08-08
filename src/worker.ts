@@ -69,7 +69,7 @@ self.addEventListener('message', (e) => {
       }
 
       if (mode === BrainfuckMode.InterpretWithIR || mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
-        const ops = translate_program(tokens, OptimizationKind.C2);
+        const ops = translate_program(tokens, OptimizationKind.C0);
         let compile = null;
 
         switch (mode) {
@@ -107,7 +107,8 @@ self.addEventListener('message', (e) => {
     if (message.type === WorkerEvent.setWat2Wasm) {
       const compileWatToWasmBlob = message.data.compileWatToWasm;
 
-      getCompileWatToWasm(compileWatToWasmBlob).then(f => compileWebAssembly = _compileWebAssembly(f));
+      getCompileWatToWasm(compileWatToWasmBlob).then(f => compileWebAssembly = _compileWebAssembly(f))
+      .catch(e => console.log(e));
     }
 });
 

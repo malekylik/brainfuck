@@ -49,7 +49,7 @@ extern "C" {
         Features s_features;
         s_features.AddOptions(&parser);
         int argc = 0;
-        char* argv[] = { (char*)"--enable-all" };
+        char* argv[] = { (char*)"--enable-simd" };
         
         parser.Parse(argc, argv);
 
@@ -67,6 +67,11 @@ extern "C" {
 
         if (!Succeeded(result)) {
             printf("validation wat error\n");
+
+            for (uint32_t i = 0; i < errors.size(); i++) {
+                printf("error message: %s\n", errors[i].message.c_str());
+                printf("error line: %i\n", errors[i].loc.line);
+            }
         }
 
         if (Succeeded(result)) {
