@@ -1,3 +1,6 @@
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
+
 import { parse_from_stream } from './utils/parser';
 import { translate_program } from 'ir/parser';
 import { OptimizationKind } from 'ir/optimization-kinds';
@@ -5,10 +8,13 @@ import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
 import { compile as compileJS } from 'compiler/js/compiler';
-import { compile as compileWebAssembly } from 'compiler/web-assembler/compiler';
+import { compile as _compileWebAssembly } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
 import { BrainfuckMode } from 'consts/mode';
+import { Opcode } from 'ir/opcode';
+import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
+import { getCompileWatToWasm } from 'compiler/web-assembler/wat2wasm';
 
 let prevFrame = 0;
 let lastFrame = 0;
@@ -33,6 +39,9 @@ function outF(v: number): void {
 
 (self as any)[inF.name] = inF;
 (self as any)[outF.name] = outF;
+
+let compileWatToWasm: (s: string) => Uint8Array;
+let compileWebAssembly: (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => Promise<CompiledModule>;
 
 self.addEventListener('message', (e) => {
     const message: WorkerMessage = e.data;
@@ -93,6 +102,12 @@ self.addEventListener('message', (e) => {
 
           self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
         }).catch(e => console.log(e));
+    }
+
+    if (message.type === WorkerEvent.setWat2Wasm) {
+      const compileWatToWasmBlob = message.data.compileWatToWasm;
+
+      getCompileWatToWasm(compileWatToWasmBlob).then(f => compileWebAssembly = _compileWebAssembly(f));
     }
 });
 

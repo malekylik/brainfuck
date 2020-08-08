@@ -50,8 +50,6 @@ interface ModuleI {
     free: (v: number) => void;
     malloc: (v: number) => number;
     free_memory: (v: number) => void;
-    getValue: (ptr: number, type: string) => number;
-    setValue: (ptr: number, value: number, type: string) => void;
     get_size: (v: number) => number;
     get_result_p: (v: number) => number;
     compileWatToWasm: (string_p: number, string_size: number) => number;
@@ -854,8 +852,6 @@ async function run(wasmModulePath: string) {
 
   return {
     ...exports,
-    setValue,
-    getValue,
   }
 }
 
@@ -864,14 +860,12 @@ export async function getCompileWatToWasm(wasmModulePath: string) {
     free,
     malloc,
     free_memory,
-    getValue,
-    setValue,
     get_size,
     get_result_p,
     compileWatToWasm: _compileWatToWasm,
   } = await run(wasmModulePath);
 
-  const compiledFunc = function (wat: string) {
+  const compiledFunc = function (wat: string): Uint8Array {
     const string_size = wat.length;
     const string_p = malloc(wat.length);
 

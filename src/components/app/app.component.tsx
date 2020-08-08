@@ -11,7 +11,7 @@ import { CompilerTimeProfile } from 'types/worker';
 import { converMillisecondToString } from 'utils/time';
 import { modeToString } from 'utils/mode';
 import { useWrapperStyles, useButtonStyles, useTextareaStyles } from './app.style';
-import { useWorker } from './app.hooks';
+import { useWorker, useWat2Wasm } from './app.hooks';
 
 export default function App() {
   const [bfSource, changeBFSource] = useState(mandelbrot);
@@ -28,7 +28,8 @@ export default function App() {
   const buttonClasses = useButtonStyles();
   const textareaClasses = useTextareaStyles();
 
-  const workerRef = useWorker(onWorkerOut, onWorkerEnd);
+  const [workerRef, workerLoading] = useWorker(onWorkerOut, onWorkerEnd);
+  useWat2Wasm(workerRef, workerLoading);
 
   function changeBFSourceHandler(e: React.ChangeEvent<HTMLTextAreaElement>) {
     changeBFSource(e.target.value);
