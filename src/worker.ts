@@ -1,14 +1,20 @@
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
+
 import { parse_from_stream } from './utils/parser';
 import { translate_program } from 'ir/parser';
 import { OptimizationKind } from 'ir/optimization-kinds';
+import { Opcode } from 'ir/opcode';
 import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
 import { compile as compileJS } from 'compiler/js/compiler';
-import { compile as compileWebAssembly } from 'compiler/web-assembler/compiler';
+import { compile as compileWasm, compileFromWatToWasm } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
 import { BrainfuckMode } from 'consts/mode';
+import { getCompileWatToWasm } from 'compiler/web-assembler/wat2wasm';
+import { InputFunction, OutputFunction } from 'types/compiler';
 
 let prevFrame = 0;
 let lastFrame = 0;
@@ -33,6 +39,8 @@ function outF(v: number): void {
 
 (self as any)[inF.name] = inF;
 (self as any)[outF.name] = outF;
+
+let compileFromWatToWasmBin: (wat: string) => Uint8Array;
 
 self.addEventListener('message', (e) => {
     const message: WorkerMessage = e.data;
@@ -66,7 +74,8 @@ self.addEventListener('message', (e) => {
         switch (mode) {
           case BrainfuckMode.InterpretWithIR: compile = OptimizedInterpret; break;
           case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
-          case BrainfuckMode.CompileWebAssembly: compile = compileWebAssembly; break;
+          case BrainfuckMode.CompileWebAssembly: compile = compileWasm; break;
+          // case BrainfuckMode.CompileWebAssembly: compile = (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF); break;
         }
 
         modulePromise = compile(ops, inF, outF);
@@ -92,7 +101,14 @@ self.addEventListener('message', (e) => {
           time.runTime = end - now;
 
           self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
-        }).catch(e => console.log(e));
+        });
+    }
+
+    if (message.type === WorkerEvent.setWat2Wasm) {
+      const compileWatToWasmBlob = message.data.compileWatToWasm;
+
+      getCompileWatToWasm(compileWatToWasmBlob).then(f => compileFromWatToWasmBin = f)
+        .catch(e => console.log(e));
     }
 });
 

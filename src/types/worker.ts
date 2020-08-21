@@ -29,7 +29,16 @@ export type WorkerMessageEnd = {
   }
 };
 
+
+export type WorkerMessageSetWat2Wasm = {
+  type: WorkerEvent.setWat2Wasm,
+  data: {
+    compileWatToWasm: string,
+  }
+};
+
 export type WorkerMessage =
   WorkerMessageStart |
   WorkerMessageOut |
-  WorkerMessageEnd;
+  WorkerMessageEnd |
+  WorkerMessageSetWat2Wasm;
