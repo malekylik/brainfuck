@@ -6,6 +6,13 @@ import { emitter, Valtype, Opcodes } from './emitter';
 import { unsignedLEB128, signedLEB128 } from './encoding';
 import { TextCoder } from 'utils/text-coder';
 
+
+// optimize_loop_set_to_zero, +
+// optimize_loop_move_ptr, +
+// optimize_loop_move_data, +-
+// optimize_range_update +
+// set_data +
+
 function compile_prod(compileWatToWasm: (s: string) => Uint8Array) {
   return function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
     let coder = new TextCoder();
@@ -91,6 +98,8 @@ function compile_prod(compileWatToWasm: (s: string) => Uint8Array) {
           }
 
           case OpKind.DEC_DATA: {
+            // console.log('op.argument');
+
             coder.encode(
               `local.get $p\n` +
               `i32.const ${offset}\n` +
@@ -102,35 +111,6 @@ function compile_prod(compileWatToWasm: (s: string) => Uint8Array) {
               `i32.sub\n` +
               `i32.store8\n`
             );
-
-            // code.push(
-            //   Opcodes.get_local,
-            //   ...p,
-
-            //   Opcodes.i32_const,
-            //   ...signedLEB128(offset),
-
-            //   Opcodes.i32_add,
-
-            //   Opcodes.tee_local,
-            //   ...p_offset,
-
-            //   Opcodes.get_local,
-            //   ...p_offset,
-
-            //   Opcodes.i32_load8_u,
-            //   ...unsignedLEB128(0),
-            //   ...unsignedLEB128(0),
-
-            //   Opcodes.i32_const,
-            //   ...signedLEB128(op.argument),
-
-            //   Opcodes.i32_sub,
-
-            //   Opcodes.i32_store8,
-            //   ...unsignedLEB128(0),
-            //   ...unsignedLEB128(0),
-            // );
 
             break;
           }
@@ -145,16 +125,6 @@ function compile_prod(compileWatToWasm: (s: string) => Uint8Array) {
           }
 
           case OpKind.WRITE_STDOUT: {
-            // if (op.argument < 2) {
-            //   code.push(
-            //     encode(`${outF}(${memoryName}[${dataptr} + ${offset}]);\n`)
-            //   ); 
-            // } else {
-            //   code.push(
-            //     encode(`for (let i = 0; i < ${op.argument}; i++) ${outF}(${memoryName}[${dataptr} + ${offset}]);\n`)
-            //   );
-            // }
-
             // TO_DO add loop for out
             coder.encode(
               `local.get $p\n` +
@@ -182,14 +152,25 @@ function compile_prod(compileWatToWasm: (s: string) => Uint8Array) {
 
           case OpKind.LOOP_MOVE_PTR: {
             coder.encode(
+              `block\n` +
+              `loop\n` +
               `local.get $p\n` +
               `i32.const ${offset}\n` +
               `i32.add\n` +
-              `i32.const 0\n` +
-              `i32.const 0\n` +
-              `i32.store8\n`
+              `local.tee $p_offset\n` +
+              `i32.load8_u\n` +
+              `i32.eqz\n` +
+              `br_if 1\n` +
+              `local.get $p\n` +
+              `i32.const ${op.argument}\n` +
+              `i32.add\n` +
+              `local.set $p\n` +
+              `br 0\n` +
+              `end\n` +
+              `end\n`
             );
-            // code.push(
+
+             // code.push(
             //   Opcodes.block,
             //   Valtype.void,
             //   Opcodes.loop,
@@ -206,141 +187,200 @@ function compile_prod(compileWatToWasm: (s: string) => Uint8Array) {
             //   Opcodes.tee_local,
             //   ...p_offset,
 
-            //   Opcodes.i32_load8_u,
-            //   ...unsignedLEB128(0),
-            //   ...unsignedLEB128(0),
+              // Opcodes.i32_load8_u,
+              // ...unsignedLEB128(0),
+              // ...unsignedLEB128(0),
 
-            //   Opcodes.i32_eqz,
+              // Opcodes.i32_eqz,
 
-            //   Opcodes.br_if,
-            //   ...unsignedLEB128(1),
+              // Opcodes.br_if,
+              // ...unsignedLEB128(1),
 
-            //   Opcodes.get_local,
-            //   ...p,
+              // Opcodes.get_local,
+              // ...p,
 
-            //   Opcodes.i32_const,
-            //   ...signedLEB128(op.argument),
+              // Opcodes.i32_const,
+              // ...signedLEB128(op.argument),
 
-            //   Opcodes.i32_add,
+              // Opcodes.i32_add,
 
-            //   Opcodes.set_local,
-            //   ...p,
+              // Opcodes.set_local,
+              // ...p,
 
-            //   Opcodes.br,
-            //   ...unsignedLEB128(0),
+              // Opcodes.br,
+              // ...unsignedLEB128(0),
 
-            //   Opcodes.end,
-            //   Opcodes.end,
+              // Opcodes.end,
+              // Opcodes.end,
             // );
 
             break;
           }
 
-          // case OpKind.LOOP_MOVE_DATA: {
-          //   // TODO can result in invalid memory access
-          //   code.push(
-          //     // OK
-          //     Opcodes.get_local,
-          //     ...p,
+          case OpKind.LOOP_MOVE_DATA: {
+            // TODO can result in invalid memory access
+            coder.encode(
+              `local.get $p\n` +
+              `i32.const ${offset}\n` +
+              `i32.add\n` +
+              `local.tee $p_offset\n` +
+              `i32.load8_u\n` +
+              `i32.const 0\n` +
+              `i32.gt_u\n` +
+              `if\n` +
+              `local.get $p_offset\n` +
 
-          //     Opcodes.i32_const,
-          //     ...signedLEB128(offset),
+              // stack :
+              // 0: | data + offset |
 
-          //     Opcodes.i32_add,
+              `i32.const ${op.argument}\n` +
+              `i32.add\n` +
 
-          //     Opcodes.tee_local,
-          //     ...p_offset,
-          //     // OK
+              // stack :
+              // 0: | data + offset + op.argument |
 
+              `local.get $p_offset\n` +
+              `i32.const ${op.argument}\n` +
+              `i32.add\n` +
 
-          //     Opcodes.i32_load8_u,
-          //     ...unsignedLEB128(0),
-          //     ...unsignedLEB128(0),
+              // stack :
+              // 0: | data + offset + op.argument |
+              // 1: | data + offset + op.argument |
 
+              `i32.load8_u\n` +
 
-          //     Opcodes.i32_const,
-          //     ...unsignedLEB128(0),
+              // stack :
+              // 0: | data + offset + op.argument |
 
-          //     Opcodes.i32_gt_u,
+              `local.get $p_offset\n` +
 
-          //     Opcodes.if,
-          //     Valtype.void,
+              // stack :
+              // 0: | data + offset |
+              // 1: | data + offset + op.argument |
 
-          //     Opcodes.get_local,
-          //     ...p_offset,
+              `i32.load8_u\n` +
 
-          //     // stack :
-          //     // 0: | data + offset |
+              // stack :
+              // 0: | data + offset + op.argument |
 
-          //     Opcodes.i32_const,
-          //     ...signedLEB128(op.argument),
+              `i32.add\n` +
+              `i32.store8\n` +
 
-          //     Opcodes.i32_add,
+              // stack :
 
-          //     // stack :
-          //     // 0: | data + offset + op.argument |
+              `local.get $p_offset\n` +
 
-          //     Opcodes.get_local,
-          //     ...p_offset,
+              // stack :
+              // 0: | data + offset |
 
-          //     Opcodes.i32_const,
-          //     ...signedLEB128(op.argument),
+              `i32.const 0\n` +
+              `i32.store8\n` +
+              `end\n`
+            );
 
-          //     Opcodes.i32_add,
+            // code.push(
+              // // OK
+              // Opcodes.get_local,
+              // ...p,
 
-          //     // stack :
-          //     // 0: | data + offset + op.argument |
-          //     // 1: | data + offset + op.argument |
+              // Opcodes.i32_const,
+              // ...signedLEB128(offset),
 
-          //     Opcodes.i32_load8_u,
-          //     ...unsignedLEB128(0),
-          //     ...unsignedLEB128(0),
+              // Opcodes.i32_add,
 
-          //     // stack :
-          //     // 0: | data + offset + op.argument |
-
-          //     Opcodes.get_local,
-          //     ...p_offset,
-
-          //     // stack :
-          //     // 0: | data + offset |
-          //     // 1: | data + offset + op.argument |
-
-          //     Opcodes.i32_load8_u,
-          //     ...unsignedLEB128(0),
-          //     ...unsignedLEB128(0),
-
-          //     // stack :
-          //     // 0: | data + offset + op.argument |
-
-          //     Opcodes.i32_add,
-
-          //     Opcodes.i32_store8,
-          //     ...unsignedLEB128(0),
-          //     ...unsignedLEB128(0),
+              // Opcodes.tee_local,
+              // ...p_offset,
+              // // OK
 
 
-          //     // OK
-          //     // stack :
+              // Opcodes.i32_load8_u,
+              // ...unsignedLEB128(0),
+              // ...unsignedLEB128(0),
 
-          //     Opcodes.get_local,
-          //     ...p_offset,
 
-          //     // stack :
-          //     // 0: | data + offset |
+              // Opcodes.i32_const,
+              // ...unsignedLEB128(0),
 
-          //     Opcodes.i32_const,
-          //     ...signedLEB128(0),
+              // Opcodes.i32_gt_u,
 
-          //     Opcodes.i32_store8,
-          //     ...unsignedLEB128(0),
-          //     ...unsignedLEB128(0),
+              // Opcodes.if,
+              // Valtype.void,
 
-          //     Opcodes.end,
-          //   );
+              // Opcodes.get_local,
+              // ...p_offset,
 
-          //   break;
-          // }
+              // // stack :
+              // // 0: | data + offset |
+
+              // Opcodes.i32_const,
+              // ...signedLEB128(op.argument),
+
+              // Opcodes.i32_add,
+
+              // // stack :
+              // // 0: | data + offset + op.argument |
+
+              // Opcodes.get_local,
+              // ...p_offset,
+
+              // Opcodes.i32_const,
+              // ...signedLEB128(op.argument),
+
+              // Opcodes.i32_add,
+
+              // // stack :
+              // // 0: | data + offset + op.argument |
+              // // 1: | data + offset + op.argument |
+
+              // Opcodes.i32_load8_u,
+              // ...unsignedLEB128(0),
+              // ...unsignedLEB128(0),
+
+              // stack :
+              // 0: | data + offset + op.argument |
+
+              // Opcodes.get_local,
+              // ...p_offset,
+
+              // stack :
+              // 0: | data + offset |
+              // 1: | data + offset + op.argument |
+
+              // Opcodes.i32_load8_u,
+              // ...unsignedLEB128(0),
+              // ...unsignedLEB128(0),
+
+              // stack :
+              // 0: | data + offset + op.argument |
+
+              // Opcodes.i32_add,
+
+              // Opcodes.i32_store8,
+              // ...unsignedLEB128(0),
+              // ...unsignedLEB128(0),
+
+
+              // OK
+              // stack :
+
+              // Opcodes.get_local,
+              // ...p_offset,
+
+              // stack :
+              // 0: | data + offset |
+
+              // Opcodes.i32_const,
+              // ...signedLEB128(0),
+
+              // Opcodes.i32_store8,
+              // ...unsignedLEB128(0),
+              // ...unsignedLEB128(0),
+
+              // Opcodes.end,
+            // );
+
+            break;
+          }
 
           case OpKind.JUMP_IF_DATA_ZERO: {
             coder.encode(
@@ -371,115 +411,158 @@ function compile_prod(compileWatToWasm: (s: string) => Uint8Array) {
             break;
           }
 
-          // case OpKind.RESET_DATA_RANGE: {
-          //   code.push(
-          //     Opcodes.get_local,
-          //     ...p,
+          case OpKind.RESET_DATA_RANGE: {
+            coder.encode(
+              `local.get $p\n` +
+              `i32.const ${offset}\n` +
+              `i32.add\n` +
+              `local.set $p_offset\n`
+            );
 
-          //     Opcodes.i32_const,
-          //     ...signedLEB128(offset),
+            // code.push(
+            //   Opcodes.get_local,
+            //   ...p,
 
-          //     Opcodes.i32_add,
+            //   Opcodes.i32_const,
+            //   ...signedLEB128(offset),
 
-          //     Opcodes.set_local,
-          //     ...p_offset,
-          //   );
+            //   Opcodes.i32_add,
+
+            //   Opcodes.set_local,
+            //   ...p_offset,
+            // );
 
 
-          // for (let i = 1; i < op.argument + 1; i++) {
-          //     code.push(
-          //       Opcodes.get_local,
-          //       ...p_offset,
+          for (let i = 1; i < op.argument + 1; i++) {
+            coder.encode(
+              `local.get $p_offset\n` +
+              `i32.const ${i}\n` +
+              `i32.add\n` +
+              `local.tee $p_offset\n` +
+              `i32.const 0\n` +
+              `i32.store8\n`
+            );
 
-          //       Opcodes.i32_const,
-          //       ...unsignedLEB128(i),
+              // code.push(
+              //   Opcodes.get_local,
+              //   ...p_offset,
 
-          //       Opcodes.i32_add,
+              //   Opcodes.i32_const,
+              //   ...unsignedLEB128(i),
 
-          //       Opcodes.tee_local,
-          //       ...p_offset,
+              //   Opcodes.i32_add,
 
-          //       Opcodes.i32_const,
-          //       ...unsignedLEB128(0),
+              //   Opcodes.tee_local,
+              //   ...p_offset,
 
-          //       Opcodes.i32_store8,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
-          //     );
-          //   }
+              //   Opcodes.i32_const,
+              //   ...unsignedLEB128(0),
 
-          //   break;
-          // }
+              //   Opcodes.i32_store8,
+              //   ...unsignedLEB128(0),
+              //   ...unsignedLEB128(0),
+              // );
+            }
 
-          // case OpKind.SET_DATA: {
-          //   code.push(
-          //     Opcodes.get_local,
-          //     ...p,
+            break;
+          }
 
-          //     Opcodes.i32_const,
-          //     ...signedLEB128(offset),
+          case OpKind.SET_DATA: {
+            coder.encode(
+              `local.get $p\n` +
+              `i32.const ${offset}\n` +
+              `i32.add\n` +
+              `i32.const ${op.argument}\n` +
+              `i32.store8\n`
+            );
 
-          //     Opcodes.i32_add,
+            // code.push(
+            //   Opcodes.get_local,
+            //   ...p,
 
-          //     Opcodes.i32_const,
-          //     ...unsignedLEB128(op.argument),
+            //   Opcodes.i32_const,
+            //   ...signedLEB128(offset),
 
-          //     Opcodes.i32_store8,
-          //     ...unsignedLEB128(0),
-          //     ...unsignedLEB128(0),
-          //   );
+            //   Opcodes.i32_add,
 
-          //   break;
-          // }
+            //   Opcodes.i32_const,
+            //   ...unsignedLEB128(op.argument),
+
+            //   Opcodes.i32_store8,
+            //   ...unsignedLEB128(0),
+            //   ...unsignedLEB128(0),
+            // );
+
+            break;
+          }
 
           // case OpKind.DATA_LOOP: {
           //   loop_data_offset = offset;
           //   loop_data_offsets.push(loop_data_offset);
 
-          //   code.push(
-          //     Opcodes.get_local,
-          //     ...p,
-
-          //     Opcodes.i32_const,
-          //     ...signedLEB128(offset),
-
-          //     Opcodes.i32_add,
-
-          //     Opcodes.i32_load8_u,
-          //     ...unsignedLEB128(0),
-          //     ...unsignedLEB128(0),
-
-          //     Opcodes.i32_const,
-          //     ...unsignedLEB128(0),
-
-          //     Opcodes.i32_gt_u,
-
-          //     Opcodes.if,
-          //     Valtype.void,
+          //   coder.encode(
+          //     `local.get $p\n` +
+          //     `i32.const ${offset}\n` +
+          //     `i32.add\n` +
+          //     `i32.load8_u\n` +
+          //     `i32.const 0\n` +
+          //     `i32.gt_u\n` +
+          //     `if\n`
           //   );
+
+          //   // code.push(
+          //   //   Opcodes.get_local,
+          //   //   ...p,
+
+          //   //   Opcodes.i32_const,
+          //   //   ...signedLEB128(offset),
+
+          //   //   Opcodes.i32_add,
+
+          //   //   Opcodes.i32_load8_u,
+          //   //   ...unsignedLEB128(0),
+          //   //   ...unsignedLEB128(0),
+
+          //   //   Opcodes.i32_const,
+          //   //   ...unsignedLEB128(0),
+
+          //   //   Opcodes.i32_gt_u,
+
+          //   //   Opcodes.if,
+          //   //   Valtype.void,
+          //   // );
 
           //   break;
           // }
 
           // case OpKind.DATA_LOOP_END: {
-          //   code.push(
-          //     Opcodes.get_local,
-          //     ...p,
-
-          //     Opcodes.i32_const,
-          //     ...signedLEB128(loop_data_offset),
-
-          //     Opcodes.i32_add,
-
-          //     Opcodes.i32_const,
-          //     ...signedLEB128(0),
-
-          //     Opcodes.i32_store8,
-          //     ...unsignedLEB128(0),
-          //     ...unsignedLEB128(0),
-
-          //     Opcodes.end,
+          //   coder.encode(
+          //     `local.get $p\n` +
+          //     `i32.const ${loop_data_offset}\n` +
+          //     `i32.add\n` +
+          //     `i32.const 0\n` +
+          //     `i32.store8\n` +
+          //     `end\n`
           //   );
+
+          //   // code.push(
+          //   //   Opcodes.get_local,
+          //   //   ...p,
+
+          //   //   Opcodes.i32_const,
+          //   //   ...signedLEB128(loop_data_offset),
+
+          //   //   Opcodes.i32_add,
+
+          //   //   Opcodes.i32_const,
+          //   //   ...signedLEB128(0),
+
+          //   //   Opcodes.i32_store8,
+          //   //   ...unsignedLEB128(0),
+          //   //   ...unsignedLEB128(0),
+
+          //   //   Opcodes.end,
+          //   // );
 
           //   offset = loop_data_offsets.pop();
           //   loop_data_offset = loop_data_offsets[loop_data_offsets.length - 1];
@@ -489,86 +572,118 @@ function compile_prod(compileWatToWasm: (s: string) => Uint8Array) {
 
           // case OpKind.DATA_LOOP_ADD: {
           //   if (op.argument === 1) {
-          //     code.push(
-          //       Opcodes.get_local,
-          //       ...p,
-
-          //       Opcodes.i32_const,
-          //       ...signedLEB128(offset),
-
-          //       Opcodes.i32_add,
-
-          //       Opcodes.tee_local,
-          //       ...p_offset,
-
-          //       Opcodes.get_local,
-          //       ...p_offset,
-
-          //       Opcodes.i32_load8_u,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
-
-          //       Opcodes.get_local,
-          //       ...p,
-
-          //       Opcodes.i32_const,
-          //       ...signedLEB128(loop_data_offset),
-
-          //       Opcodes.i32_add,
-
-          //       Opcodes.i32_load8_u,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
-
-          //       Opcodes.i32_add,
-
-          //       Opcodes.i32_store8,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
+          //     coder.encode(
+          //       `local.get $p\n` +
+          //       `i32.const ${offset}\n` +
+          //       `i32.add\n` +
+          //       `local.tee $p_offset\n` +
+          //       `local.get $p_offset\n` +
+          //       `i32.load8_u\n` +
+          //       `local.get $p\n` +
+          //       `i32.const ${loop_data_offset}\n` +
+          //       `i32.add\n` +
+          //       `i32.load8_u\n` +
+          //       `i32.add\n` +
+          //       `i32.store8\n`
           //     );
+
+          //     // code.push(
+          //       // Opcodes.get_local,
+          //       // ...p,
+
+          //       // Opcodes.i32_const,
+          //       // ...signedLEB128(offset),
+
+          //       // Opcodes.i32_add,
+
+          //       // Opcodes.tee_local,
+          //       // ...p_offset,
+
+          //       // Opcodes.get_local,
+          //       // ...p_offset,
+
+          //       // Opcodes.i32_load8_u,
+          //       // ...unsignedLEB128(0),
+          //       // ...unsignedLEB128(0),
+
+          //       // Opcodes.get_local,
+          //       // ...p,
+
+          //       // Opcodes.i32_const,
+          //       // ...signedLEB128(loop_data_offset),
+
+          //       // Opcodes.i32_add,
+
+          //       // Opcodes.i32_load8_u,
+          //       // ...unsignedLEB128(0),
+          //       // ...unsignedLEB128(0),
+
+          //     //   Opcodes.i32_add,
+
+          //     //   Opcodes.i32_store8,
+          //     //   ...unsignedLEB128(0),
+          //     //   ...unsignedLEB128(0),
+          //     // );
           //   } else {
-          //     code.push(
-          //       Opcodes.get_local,
-          //       ...p,
-
-          //       Opcodes.i32_const,
-          //       ...signedLEB128(offset),
-
-          //       Opcodes.i32_add,
-
-          //       Opcodes.tee_local,
-          //       ...p_offset,
-
-          //       Opcodes.get_local,
-          //       ...p_offset,
-
-          //       Opcodes.i32_load8_u,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
-
-          //       Opcodes.get_local,
-          //       ...p,
-
-          //       Opcodes.i32_const,
-          //       ...signedLEB128(loop_data_offset),
-
-          //       Opcodes.i32_add,
-
-          //       Opcodes.i32_load8_u,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
-
-          //       Opcodes.i32_const,
-          //       ...signedLEB128(op.argument),
-
-          //       Opcodes.i32_mul,
-
-          //       Opcodes.i32_add,
-
-          //       Opcodes.i32_store8,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
+          //     coder.encode(
+          //       `local.get $p\n` +
+          //       `i32.const ${offset}\n` +
+          //       `i32.add\n` +
+          //       `local.tee $p_offset\n` +
+          //       `local.get $p_offset\n` +
+          //       `i32.load8_u\n` +
+          //       `local.get $p\n` +
+          //       `i32.const ${loop_data_offset}\n` +
+          //       `i32.add\n` +
+          //       `i32.load8_u\n` +
+          //       `i32.const ${op.argument}\n` +
+          //       `i32.mul\n` +
+          //       `i32.add\n` +
+          //       `i32.store8\n`
           //     );
+
+          //     // code.push(
+          //       // Opcodes.get_local,
+          //       // ...p,
+
+          //       // Opcodes.i32_const,
+          //       // ...signedLEB128(offset),
+
+          //       // Opcodes.i32_add,
+
+          //       // Opcodes.tee_local,
+          //       // ...p_offset,
+
+          //       // Opcodes.get_local,
+          //       // ...p_offset,
+
+          //       // Opcodes.i32_load8_u,
+          //       // ...unsignedLEB128(0),
+          //       // ...unsignedLEB128(0),
+
+          //       // Opcodes.get_local,
+          //       // ...p,
+
+          //       // Opcodes.i32_const,
+          //       // ...signedLEB128(loop_data_offset),
+
+          //       // Opcodes.i32_add,
+
+          //       // Opcodes.i32_load8_u,
+          //       // ...unsignedLEB128(0),
+          //       // ...unsignedLEB128(0),
+
+          //       // Opcodes.i32_const,
+          //       // ...signedLEB128(op.argument),
+
+          //     //   Opcodes.i32_mul,
+
+          //     //   Opcodes.i32_add,
+
+          //     //   Opcodes.i32_store8,
+          //     //   ...unsignedLEB128(0),
+          //     //   ...unsignedLEB128(0),
+          //     // );
           //   }
 
           //   break;
@@ -576,114 +691,156 @@ function compile_prod(compileWatToWasm: (s: string) => Uint8Array) {
 
           // case OpKind.DATA_LOOP_SUB: {
           //   if (op.argument === 1) {
-          //     code.push(
-          //       Opcodes.get_local,
-          //       ...p,
-
-          //       Opcodes.i32_const,
-          //       ...signedLEB128(offset),
-
-          //       Opcodes.i32_add,
-
-          //       Opcodes.tee_local,
-          //       ...p_offset,
-
-          //       Opcodes.get_local,
-          //       ...p_offset,
-
-          //       Opcodes.i32_load8_u,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
-
-          //       Opcodes.get_local,
-          //       ...p,
-
-          //       Opcodes.i32_const,
-          //       ...signedLEB128(loop_data_offset),
-
-          //       Opcodes.i32_add,
-
-          //       Opcodes.i32_load8_u,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
-
-          //       Opcodes.i32_sub,
-
-          //       Opcodes.i32_store8,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
+          //     coder.encode(
+          //       `local.get $p\n` +
+          //       `i32.const ${offset}\n` +
+          //       `i32.add\n` +
+          //       `local.tee $p_offset\n` +
+          //       `local.get $p_offset\n` +
+          //       `i32.load8_u\n` +
+          //       `local.get $p\n` +
+          //       `i32.const ${loop_data_offset}\n` +
+          //       `i32.add\n` +
+          //       `i32.load8_u\n` +
+          //       `i32.sub\n` +
+          //       `i32.store8\n`
           //     );
+
+          //     // code.push(
+          //     //   Opcodes.get_local,
+          //     //   ...p,
+
+          //     //   Opcodes.i32_const,
+          //     //   ...signedLEB128(offset),
+
+          //     //   Opcodes.i32_add,
+
+          //     //   Opcodes.tee_local,
+          //     //   ...p_offset,
+
+          //     //   Opcodes.get_local,
+          //     //   ...p_offset,
+
+          //     //   Opcodes.i32_load8_u,
+          //     //   ...unsignedLEB128(0),
+          //     //   ...unsignedLEB128(0),
+
+          //     //   Opcodes.get_local,
+          //     //   ...p,
+
+          //     //   Opcodes.i32_const,
+          //     //   ...signedLEB128(loop_data_offset),
+
+          //     //   Opcodes.i32_add,
+
+          //     //   Opcodes.i32_load8_u,
+          //     //   ...unsignedLEB128(0),
+          //     //   ...unsignedLEB128(0),
+
+          //     //   Opcodes.i32_sub,
+
+          //     //   Opcodes.i32_store8,
+          //     //   ...unsignedLEB128(0),
+          //     //   ...unsignedLEB128(0),
+          //     // );
           //   } else {
-          //     code.push(
-          //       Opcodes.get_local,
-          //       ...p,
-
-          //       Opcodes.i32_const,
-          //       ...signedLEB128(offset),
-
-          //       Opcodes.i32_add,
-
-          //       Opcodes.tee_local,
-          //       ...p_offset,
-
-          //       Opcodes.get_local,
-          //       ...p_offset,
-
-          //       Opcodes.i32_load8_u,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
-
-          //       Opcodes.get_local,
-          //       ...p,
-
-          //       Opcodes.i32_const,
-          //       ...signedLEB128(loop_data_offset),
-
-          //       Opcodes.i32_add,
-
-          //       Opcodes.i32_load8_u,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
-
-          //       Opcodes.i32_const,
-          //       ...signedLEB128(op.argument),
-
-          //       Opcodes.i32_mul,
-
-          //       Opcodes.i32_sub,
-
-          //       Opcodes.i32_store8,
-          //       ...unsignedLEB128(0),
-          //       ...unsignedLEB128(0),
+          //     coder.encode(
+          //       `local.get $p\n` +
+          //       `i32.const ${offset}\n` +
+          //       `i32.add\n` +
+          //       `local.tee $p_offset\n` +
+          //       `local.get $p_offset\n` +
+          //       `i32.load8_u\n` +
+          //       `local.get $p\n` +
+          //       `i32.const ${loop_data_offset}\n` +
+          //       `i32.add\n` +
+          //       `i32.load8_u\n` +
+          //       `i32.const ${op.argument}\n` +
+          //       `i32.mul\n` +
+          //       `i32.sub\n` +
+          //       `i32.store8\n`
           //     );
+
+          //     // code.push(
+          //     //   Opcodes.get_local,
+          //     //   ...p,
+
+          //     //   Opcodes.i32_const,
+          //     //   ...signedLEB128(offset),
+
+          //     //   Opcodes.i32_add,
+
+          //     //   Opcodes.tee_local,
+          //     //   ...p_offset,
+
+          //     //   Opcodes.get_local,
+          //     //   ...p_offset,
+
+          //     //   Opcodes.i32_load8_u,
+          //     //   ...unsignedLEB128(0),
+          //     //   ...unsignedLEB128(0),
+
+          //     //   Opcodes.get_local,
+          //     //   ...p,
+
+          //     //   Opcodes.i32_const,
+          //     //   ...signedLEB128(loop_data_offset),
+
+          //     //   Opcodes.i32_add,
+
+          //     //   Opcodes.i32_load8_u,
+          //     //   ...unsignedLEB128(0),
+          //     //   ...unsignedLEB128(0),
+
+          //     //   Opcodes.i32_const,
+          //     //   ...signedLEB128(op.argument),
+
+          //     //   Opcodes.i32_mul,
+
+          //     //   Opcodes.i32_sub,
+
+          //     //   Opcodes.i32_store8,
+          //     //   ...unsignedLEB128(0),
+          //     //   ...unsignedLEB128(0),
+          //     // );
           //   }
 
           //   break;
           // }
 
-          // case OpKind.STORE_DATAPTR: {
-          //   code.push(
-          //     Opcodes.get_local,
-          //     ...p,
+          case OpKind.STORE_DATAPTR: {
+            coder.encode(
+              `local.get $p\n` +
+              `local.set $p_cached`
+            );
 
-          //     Opcodes.set_local,
-          //     ...p_cached,
-          //   );
+            // code.push(
+            //   Opcodes.get_local,
+            //   ...p,
 
-          //   break;
-          // }
+            //   Opcodes.set_local,
+            //   ...p_cached,
+            // );
 
-          // case OpKind.GET_DATAPTR: {
-          //   code.push(
-          //     Opcodes.get_local,
-          //     ...p_cached,
+            break;
+          }
 
-          //     Opcodes.set_local,
-          //     ...p,
-          //   );
+          case OpKind.GET_DATAPTR: {
+            coder.encode(
+              `local.get $p_cached\n` +
+              `local.set $p`
+            );
 
-          //   break;
-          // }
+            // code.push(
+            //   Opcodes.get_local,
+            //   ...p_cached,
+
+            //   Opcodes.set_local,
+            //   ...p,
+            // );
+
+            break;
+          }
 
           default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
         }
@@ -702,6 +859,12 @@ function compile_prod(compileWatToWasm: (s: string) => Uint8Array) {
       );
 
     const text = coder.decode();
+
+    // const debug = text.split('\n');
+    // const line = 151;
+    // for (let i = Math.max(0, line - 7); i < line + 7 && i < debug.length; i++) {
+    //   console.log(i + ': ' + debug[i]);
+    // }
 
     const wasm = compileWatToWasm(text);
 

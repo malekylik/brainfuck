@@ -40,7 +40,6 @@ function outF(v: number): void {
 (self as any)[inF.name] = inF;
 (self as any)[outF.name] = outF;
 
-let compileWatToWasm: (s: string) => Uint8Array;
 let compileWebAssembly: (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => Promise<CompiledModule>;
 
 self.addEventListener('message', (e) => {
@@ -69,7 +68,9 @@ self.addEventListener('message', (e) => {
       }
 
       if (mode === BrainfuckMode.InterpretWithIR || mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
-        const ops = translate_program(tokens, OptimizationKind.C0);
+        // const ops = translate_program(tokens, OptimizationKind.C2);
+        const ops = translate_program(tokens, OptimizationKind.C1);
+        // const ops = translate_program(tokens, OptimizationKind.C0);
         let compile = null;
 
         switch (mode) {
@@ -101,7 +102,8 @@ self.addEventListener('message', (e) => {
           time.runTime = end - now;
 
           self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
-        }).catch(e => console.log(e));
+        // }).catch(e => console.log(e));
+        });
     }
 
     if (message.type === WorkerEvent.setWat2Wasm) {
