@@ -74,8 +74,8 @@ self.addEventListener('message', (e) => {
         switch (mode) {
           case BrainfuckMode.InterpretWithIR: compile = OptimizedInterpret; break;
           case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
-          case BrainfuckMode.CompileWebAssembly: compile = compileWasm; break;
-          // case BrainfuckMode.CompileWebAssembly: compile = (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF); break;
+          // case BrainfuckMode.CompileWebAssembly: compile = compileWasm; break;
+          case BrainfuckMode.CompileWebAssembly: compile = (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF); break;
         }
 
         modulePromise = compile(ops, inF, outF);

@@ -136,23 +136,49 @@ function compileToWat(ops: Array<Opcode>): string {
 
         case OpKind.LOOP_MOVE_PTR: {
           coder.encode(
-            `block\n` +
-            `loop\n` +
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `local.tee $p_offset\n` +
-            `i32.load8_u\n` +
-            `i32.eqz\n` +
-            `br_if 1\n` +
-            `local.get $p\n` +
-            `i32.const ${op.argument}\n` +
-            `i32.add\n` +
-            `local.set $p\n` +
-            `br 0\n` +
-            `end\n` +
-            `end\n`
-          );
+              `local.get $p\n` +
+              `i32.const ${offset}\n` +
+              `i32.add\n` +
+              `local.set $p\n` +
+
+              `block\n` +
+              `loop\n` +
+              `local.get $p\n` +
+              `i32.load8_u\n` +
+              `i32.eqz\n` +
+              `br_if 1\n` +
+              `local.get $p\n` +
+              `i32.const ${op.argument}\n` +
+              `i32.add\n` +
+              `local.set $p\n` +
+              `br 0\n` +
+              `end\n` +
+              `end\n`+
+
+              `local.get $p\n` +
+              `i32.const ${offset}\n` +
+              `i32.sub\n` +
+              `local.set $p\n`
+            );
+
+          // coder.encode(
+          //   `block\n` +
+          //   `loop\n` +
+          //   `local.get $p\n` +
+          //   `i32.const ${offset}\n` +
+          //   `i32.add\n` +
+          //   `local.tee $p_offset\n` +
+          //   `i32.load8_u\n` +
+          //   `i32.eqz\n` +
+          //   `br_if 1\n` +
+          //   `local.get $p\n` +
+          //   `i32.const ${op.argument}\n` +
+          //   `i32.add\n` +
+          //   `local.set $p\n` +
+          //   `br 0\n` +
+          //   `end\n` +
+          //   `end\n`
+          // );
 
           break;
         }
@@ -1171,6 +1197,7 @@ function getWasmModule(wasm: Uint8Array, inF: InputFunction, outF: OutputFunctio
 
 function compileFromWatToWasm(compileWatToWasm: (s: string) => Uint8Array, ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
   const code = compileToWat(ops);
+  console.log(code);
   const wasm = compileWatToWasm(code);
 
   return getWasmModule(wasm, inF, outF);
