@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import CircularProgress from '@material-ui/core/CircularProgress';
 
 import { CompilerMode } from 'components/compiler-mode/compiler-mode.component';
 import { CompilerTimeProfiler } from 'components/compiler-time-profiler/compiler-time-profiler.component';
@@ -24,6 +25,7 @@ export default function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [open, setOpen] = useState(false);
   const [compiledCode, setCompiledCode] = useState('');
+  const [isCodeCompiling, setIsCodeCompiling] = useState(false);
 
   const outputRef = useRef(null);
 
@@ -63,12 +65,14 @@ export default function App() {
   function openViewCodeModal() {
     setOpen(true);
     if (compiledCode === '') {
+      setIsCodeCompiling(true);
       workerRef.current.postMessage({ type: WorkerEvent.getGeneratedCode, data: { src: bfSource, mode: currentMode } });
     }
   }
 
   function onCodeGenerated(code: string) {
     setCompiledCode(code);
+    setIsCodeCompiling(false);
   }
 
   function setRunMode(mode: BrainfuckMode) {
@@ -113,9 +117,20 @@ export default function App() {
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)}>
-        <p style={{ whiteSpace: 'pre-wrap' }}>
-          {compiledCode}
-        </p>
+        {
+          isCodeCompiling ?
+          <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
+            <CircularProgress />
+          </div>
+          :
+          <p style={{ whiteSpace: 'pre-wrap' }}>
+            {
+              compiledCode
+            }
+          </p>
+        }
+
+
       </Modal>
 
       <div>

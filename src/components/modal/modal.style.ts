@@ -1,10 +1,11 @@
-import { makeStyles } from '@material-ui/styles';
+import { makeStyles } from '@material-ui/core/styles';
 
 export const useStyles = makeStyles(() => ({
   paper: {
     position: 'absolute',
     overflow: 'auto',
     width: '80%',
+    minHeight: 200,
     maxHeight: '90%',
     maxWidth: 1440,
     backgroundColor: 'white',
