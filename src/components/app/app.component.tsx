@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 
 import { CompilerMode } from 'components/compiler-mode/compiler-mode.component';
 import { CompilerTimeProfiler } from 'components/compiler-time-profiler/compiler-time-profiler.component';
+import { Modal } from 'components/modal/modal.component';
 import { mandelbrot } from 'consts/programs';
 import { WorkerEvent } from 'consts/worker';
 import { BrainfuckMode } from 'consts/mode';
@@ -21,6 +22,7 @@ export default function App() {
   const [statMode, setStatMode] = useState('???');
   const [currentMode, setCurrentMode] = useState(isWebAssemblySupported ? BrainfuckMode.CompileWebAssembly : BrainfuckMode.CompileJavaScript);
   const [isRunning, setIsRunning] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const outputRef = useRef(null);
 
@@ -78,8 +80,15 @@ export default function App() {
 
         <div>
           <button className={buttonClasses.root} disabled={isRunning} onClick={runHandler}>run</button>
+          <button onClick={() => setOpen(!open)}>view code</button>
         </div>
       </div>
+
+      <Modal open={open} onClose={() => setOpen(false)}>
+        <p>
+          some text11
+        </p>
+      </Modal>
 
       <div>
 
