@@ -7,7 +7,7 @@ import { OptimizationKind } from 'ir/optimization-kinds';
 import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
-import { compile as compileJS } from 'compiler/js/compiler';
+import { compile as compileJS, compileToJS } from 'compiler/js/compiler';
 import { compile as compileWasm, compileFromWatToWasm, compileToWat } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
@@ -116,7 +116,7 @@ self.addEventListener('message', (e) => {
       let compiled = '';
 
       switch (mode) {
-        // case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
+        case BrainfuckMode.CompileJavaScript: compiled = compileToJS(ops, inF, outF); break;
         case BrainfuckMode.CompileWebAssembly: compiled = compileToWat(ops); break;
       }
 
