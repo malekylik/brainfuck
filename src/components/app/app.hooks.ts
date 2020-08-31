@@ -7,8 +7,13 @@ import { isWebAssemblySupported } from 'consts/compatibility';
 
 type onWorkerOutHandler = (s: string) => void;
 type onWorkerEndHandler = (time: CompilerTimeProfile, mode: BrainfuckMode) => void;
+type onCodeGeneratedHandler = (s: string) => void;
 
-export function useWorker(onWorkerOut: onWorkerOutHandler, onWorkerEnd: onWorkerEndHandler): [React.MutableRefObject<Worker>, boolean] {
+export function useWorker(
+  onWorkerOut: onWorkerOutHandler,
+  onWorkerEnd: onWorkerEndHandler,
+  onCodeGenerated: onCodeGeneratedHandler,
+): [React.MutableRefObject<Worker>, boolean] {
   const workerRef = useRef<Worker>(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,6 +34,10 @@ export function useWorker(onWorkerOut: onWorkerOutHandler, onWorkerEnd: onWorker
 
           if (message.type === WorkerEvent.end) {
             onWorkerEnd(message.data.time, message.data.mode);
+          }
+
+          if (message.type === WorkerEvent.getGeneratedCode) {
+            onCodeGenerated(message.data.src);
           }
         }
 

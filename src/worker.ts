@@ -4,17 +4,15 @@ import 'regenerator-runtime/runtime';
 import { parse_from_stream } from './utils/parser';
 import { translate_program } from 'ir/parser';
 import { OptimizationKind } from 'ir/optimization-kinds';
-import { Opcode } from 'ir/opcode';
 import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
 import { compile as compileJS } from 'compiler/js/compiler';
-import { compile as compileWasm, compileFromWatToWasm } from 'compiler/web-assembler/compiler';
+import { compile as compileWasm, compileFromWatToWasm, compileToWat } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
 import { BrainfuckMode } from 'consts/mode';
 import { getCompileWatToWasm } from 'compiler/web-assembler/wat2wasm';
-import { InputFunction, OutputFunction } from 'types/compiler';
 
 let prevFrame = 0;
 let lastFrame = 0;
@@ -109,6 +107,20 @@ self.addEventListener('message', (e) => {
 
       getCompileWatToWasm(compileWatToWasmBlob).then(f => compileFromWatToWasmBin = f)
         .catch(e => console.log(e));
+    }
+
+    if (message.type === WorkerEvent.getGeneratedCode) {
+      const { mode, src } = message.data;
+      const tokens = parse_from_stream(src);
+      const ops = translate_program(tokens, OptimizationKind.C2);
+      let compiled = '';
+
+      switch (mode) {
+        // case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
+        case BrainfuckMode.CompileWebAssembly: compiled = compileToWat(ops); break;
+      }
+
+      self.postMessage({ type: WorkerEvent.getGeneratedCode, data: { mode, src: compiled } });
     }
 });
 

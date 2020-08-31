@@ -23,6 +23,7 @@ export default function App() {
   const [currentMode, setCurrentMode] = useState(isWebAssemblySupported ? BrainfuckMode.CompileWebAssembly : BrainfuckMode.CompileJavaScript);
   const [isRunning, setIsRunning] = useState(false);
   const [open, setOpen] = useState(false);
+  const [compiledCode, setCompiledCode] = useState('');
 
   const outputRef = useRef(null);
 
@@ -30,7 +31,7 @@ export default function App() {
   const buttonClasses = useButtonStyles();
   const textareaClasses = useTextareaStyles();
 
-  const [workerRef, workerLoading] = useWorker(onWorkerOut, onWorkerEnd);
+  const [workerRef, workerLoading] = useWorker(onWorkerOut, onWorkerEnd, onCodeGenerated);
   useWat2Wasm(workerRef, workerLoading);
 
   function changeBFSourceHandler(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -59,6 +60,25 @@ export default function App() {
     });
   }
 
+  function openViewCodeModal() {
+    setOpen(true);
+    if (compiledCode === '') {
+      workerRef.current.postMessage({ type: WorkerEvent.getGeneratedCode, data: { src: bfSource, mode: currentMode } });
+    }
+  }
+
+  function onCodeGenerated(code: string) {
+    setCompiledCode(code);
+  }
+
+  function setRunMode(mode: BrainfuckMode) {
+    setCurrentMode(mode);
+
+    if (compiledCode !== '') {
+      setCompiledCode('');
+    }
+  }
+
   return (
     <div className={wrapperClasses.root}>
       <div className={textareaClasses.root}>
@@ -80,13 +100,21 @@ export default function App() {
 
         <div>
           <button className={buttonClasses.root} disabled={isRunning} onClick={runHandler}>run</button>
-          <button onClick={() => setOpen(!open)}>view code</button>
+          <button
+            disabled={
+              currentMode === BrainfuckMode.InterpretateBase ||
+              currentMode === BrainfuckMode.InterpretWithJumptable ||
+              currentMode === BrainfuckMode.InterpretWithIR
+            }
+            onClick={openViewCodeModal}>
+            view code
+          </button>
         </div>
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)}>
-        <p>
-          some text11
+        <p style={{ whiteSpace: 'pre-wrap' }}>
+          {compiledCode}
         </p>
       </Modal>
 
@@ -94,7 +122,7 @@ export default function App() {
 
         <CompilerTimeProfiler statMode={statMode} compileTime={compileTime} endTime={endTime} />
 
-        <CompilerMode currentMode={currentMode} setCurrentMode={setCurrentMode} />
+        <CompilerMode currentMode={currentMode} setCurrentMode={setRunMode} />
 
       </div>
     </div>
