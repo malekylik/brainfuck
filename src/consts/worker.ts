@@ -3,4 +3,5 @@ export enum WorkerEvent {
   end = 1,
   out = 2,
   setWat2Wasm = 3,
+  getGeneratedCode = 4,
 };

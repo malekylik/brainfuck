@@ -29,7 +29,6 @@ export type WorkerMessageEnd = {
   }
 };
 
-
 export type WorkerMessageSetWat2Wasm = {
   type: WorkerEvent.setWat2Wasm,
   data: {
@@ -37,8 +36,17 @@ export type WorkerMessageSetWat2Wasm = {
   }
 };
 
+export type WorkerMessageGetGeneratedCode = {
+  type: WorkerEvent.getGeneratedCode,
+  data: {
+    src: string,
+    mode: BrainfuckMode.CompileJavaScript | BrainfuckMode.CompileWebAssembly,
+  }
+};
+
 export type WorkerMessage =
   WorkerMessageStart |
   WorkerMessageOut |
   WorkerMessageEnd |
-  WorkerMessageSetWat2Wasm;
+  WorkerMessageSetWat2Wasm |
+  WorkerMessageGetGeneratedCode;

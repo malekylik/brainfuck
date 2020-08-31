@@ -15,7 +15,9 @@ function offsetDataptr(dataptr: string, offset: number): string {
   // return offset < 0 ? `${dataptr} - ${Math.abs(offset)}` : `${dataptr} + ${offset}`;
 }
 
-function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
+const memoryName = '__m__';
+
+function compileToJS(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): string {
   const memoryName = '__m__';
   const dataptr = 'p';
   const cached_dataptr = 'cp';
@@ -28,7 +30,6 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
   let loop_data_offsets = [];
 
   (self as any)[memoryName] = new Uint8Array(30000);
-
 
   coder.encode(
     `let ${dataptr} = 0;\n`
@@ -247,10 +248,15 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
       pc++;
     }
 
-  const string = coder.decode();
-  const module = new Function(string);
+  return coder.decode();
+}
 
-  console.log(string);
+function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
+  const code = compileToJS(ops, inF, outF);
+
+  (self as any)[memoryName] = new Uint8Array(30000);
+
+  const module = new Function(code);
 
   return Promise.resolve({
     module: { run: () => { module(); } },
@@ -258,4 +264,13 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
   });
 }
 
-export { compile_prod as compile };
+function _compileToJS(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): string {
+  const code = `const ${memoryName} = new Uint8Array(30000);\n` + compileToJS(ops, inF, outF);
+
+  return code;
+}
+
+export {
+  compile_prod as compile,
+  _compileToJS as compileToJS,
+};
