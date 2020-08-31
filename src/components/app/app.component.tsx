@@ -12,7 +12,7 @@ import { isWebAssemblySupported } from 'consts/compatibility';
 import { CompilerTimeProfile } from 'types/worker';
 import { converMillisecondToString } from 'utils/time';
 import { modeToString } from 'utils/mode';
-import { useWrapperStyles, useButtonStyles, useTextareaStyles } from './app.style';
+import { useWrapperStyles, useButtonStyles, useTextareaStyles, useModalStyles } from './app.style';
 import { useWorker, useWat2Wasm } from './app.hooks';
 
 export default function App() {
@@ -32,6 +32,7 @@ export default function App() {
   const wrapperClasses = useWrapperStyles();
   const buttonClasses = useButtonStyles();
   const textareaClasses = useTextareaStyles();
+  const modalClasses = useModalStyles();
 
   const [workerRef, workerLoading] = useWorker(onWorkerOut, onWorkerEnd, onCodeGenerated);
   useWat2Wasm(workerRef, workerLoading);
@@ -119,11 +120,11 @@ export default function App() {
       <Modal open={open} onClose={() => setOpen(false)}>
         {
           isCodeCompiling ?
-          <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
+          <div className={modalClasses.loader}>
             <CircularProgress />
           </div>
           :
-          <p style={{ whiteSpace: 'pre-wrap' }}>
+          <p className={modalClasses.code}>
             {
               compiledCode
             }

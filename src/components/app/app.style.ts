@@ -40,3 +40,15 @@ export const useTextareaStyles = makeStyles({
     marginTop: '8px'
   },
 });
+
+export const useModalStyles = makeStyles({
+  code: {
+    whiteSpace: 'pre-wrap',
+  },
+  loader: {
+    display: 'flex',
+    height: '100vh',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
