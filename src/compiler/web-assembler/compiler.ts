@@ -25,7 +25,7 @@ function compileToWat(ops: Array<Opcode>): string {
     `(import "env" "memory" (memory 1))\n`
   );
   coder.encode(
-    `(func $run (local $p i32) (local $p_offset i32) (local $p_cached i32)\n`
+    `(func $run (local $p i32) (local $p_offset i32) (local $p_cached i32) (local $loop i32)\n`
   );
 
     let pc = 0;
@@ -109,14 +109,37 @@ function compileToWat(ops: Array<Opcode>): string {
         }
 
         case OpKind.WRITE_STDOUT: {
-          // TO_DO add loop for out
-          coder.encode(
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `i32.load8_u\n` +
-            `call $print\n`
-          );
+          if (op.argument < 2) {
+            coder.encode(
+              `local.get $p\n` +
+              `i32.const ${offset}\n` +
+              `i32.add\n` +
+              `i32.load8_u\n` +
+              `call $print\n`
+            );
+          } else {
+            coder.encode(
+              `i32.const ${op.argument}\n` +
+              `local.set $loop\n` +
+              `block\n` +
+              `loop\n` +
+              `local.get $loop\n` +
+              `i32.eqz\n` +
+              `br_if 1\n` +
+              `local.get $loop\n` +
+              `i32.const ${1}\n` +
+              `i32.sub\n` +
+              `local.set $loop\n` +
+              `local.get $p\n` +
+              `i32.const ${offset}\n` +
+              `i32.add\n` +
+              `i32.load8_u\n` +
+              `call $print\n`+
+              `br 0\n` +
+              `end\n` +
+              `end\n`
+            );
+          }
 
           break;
         }
@@ -441,10 +464,11 @@ function compileFromOpcodeToWasm(ops: Array<Opcode>): Uint8Array {
   const p = unsignedLEB128(0);
   const p_offset = unsignedLEB128(1);
   const p_cached = unsignedLEB128(2);
+  const loop = unsignedLEB128(3);
 
   code.push(
     ...unsignedLEB128(1),
-    ...unsignedLEB128(3), // 3 of int32
+    ...unsignedLEB128(4), // 3 of int32
     Valtype.i32,
   );
 
@@ -578,34 +602,76 @@ function compileFromOpcodeToWasm(ops: Array<Opcode>): Uint8Array {
         }
 
         case OpKind.WRITE_STDOUT: {
-          // if (op.argument < 2) {
-          //   code.push(
-          //     encode(`${outF}(${memoryName}[${dataptr} + ${offset}]);\n`)
-          //   ); 
-          // } else {
-          //   code.push(
-          //     encode(`for (let i = 0; i < ${op.argument}; i++) ${outF}(${memoryName}[${dataptr} + ${offset}]);\n`)
-          //   );
-          // }
+          if (op.argument < 2) {
+            code.push(
+              Opcodes.get_local,
+              ...p,
 
-          // TO_DO add loop for out
-          code.push(
-            Opcodes.get_local,
-            ...p,
+              Opcodes.i32_const,
+              ...signedLEB128(offset),
 
-            Opcodes.i32_const,
-            ...signedLEB128(offset),
+              Opcodes.i32_add,
 
-            Opcodes.i32_add,
+              Opcodes.i32_load8_u,
+              ...unsignedLEB128(0),
+              ...unsignedLEB128(0),
 
-            Opcodes.i32_load8_u,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
+              Opcodes.call,
+              ...unsignedLEB128(0),
+            );
+          } else {
+            code.push(
+              Opcodes.i32_const,
+              ...signedLEB128(op.argument),
 
-            Opcodes.call,
-            ...unsignedLEB128(0),
-          );
+              Opcodes.set_local,
+              ...loop,
 
+              Opcodes.block,
+              Valtype.void,
+              Opcodes.loop,
+              Valtype.void,
+
+              Opcodes.get_local,
+              ...loop,
+
+              Opcodes.i32_eqz,
+              Opcodes.br_if,
+              ...unsignedLEB128(1),
+
+              Opcodes.get_local,
+              ...loop,
+
+              Opcodes.i32_const,
+              ...signedLEB128(1),
+
+              Opcodes.i32_sub,
+
+              Opcodes.set_local,
+              ...loop,
+
+              Opcodes.get_local,
+              ...p,
+
+              Opcodes.i32_const,
+              ...signedLEB128(offset),
+
+              Opcodes.i32_add,
+
+              Opcodes.i32_load8_u,
+              ...unsignedLEB128(0),
+              ...unsignedLEB128(0),
+
+              Opcodes.call,
+              ...unsignedLEB128(0),
+
+              Opcodes.br,
+              ...unsignedLEB128(0),
+
+              Opcodes.end,
+              Opcodes.end,
+            );
+          }
           break;
         }
 
