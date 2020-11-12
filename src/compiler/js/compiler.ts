@@ -1,7 +1,45 @@
 import { OpKind } from 'ir/opcode-kinds';
 import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
 import { TextCoder } from 'utils/text-coder';
-import { Ast, LoopBlock, MulExpression, Nodes, ParseSymbol } from 'ir/ast/ast';
+import { Ast, MulExpression, Nodes, ParseSymbol } from 'ir/ast/ast';
+
+// coder.encode(
+//   `function filterProfiling(traceEvents, depth, id, ph) {
+//     if (depth < 4) {
+//       perf.traceEvents.push({
+//         "cat": "MY_SUBSYSTEM",  //catagory
+  
+//         "pid": 0,  //process ID
+   
+//         "tid": 0, //thread ID
+   
+//         "ts": performance.now() * 1000, //time-stamp of this event
+   
+//         "ph": ph, // Begin sample
+   
+//         "name": "loop id " + id, //name of this event
+   
+//         "args": {}
+//       });}
+//   }\n`
+// );
+
+// coder.encode(
+//   `perf.traceEvents.push({
+//     "cat": "MY_SUBSYSTEM",  //catagory
+//     "pid": 0,  //process ID
+
+//     "tid": 0, //thread ID
+
+//     "ts": performance.now(), //time-stamp of this event
+
+//     "ph": "B", // Begin sample
+
+//     "name": "main", //name of this event
+
+//     "args": {}
+//   });\n`
+// );
 
 function offsetDataptr(dataptr: string, offset: number): string {
   return `${dataptr} + ${offset}`;
