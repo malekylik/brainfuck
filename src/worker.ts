@@ -76,30 +76,36 @@ self.addEventListener('message', (e) => {
           // case BrainfuckMode.CompileWebAssembly: compile = (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF); break;
         }
 
-        modulePromise = compile(ops, inF, outF);
-      }
+        // modulePromise = compile(ops, inF, outF);
 
-      modulePromise.then(({ module, memory }) => {
-          time.compileTime = performance.now() - now;
-
-          now = performance.now();
-          console.log(`start at ${now}`);
-
-          module.run();
-
-          self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
-          stringToSend = '';
-
-          console.log('memory', memory);
-
-          const end = performance.now();
-
-          console.log(`end at ${end}`);
-
-          time.runTime = end - now;
+        // modulePromise.then(({ module, memory }) => {
+          console.log(ops);
 
           self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
-        });
+        // });
+      }
+
+      // modulePromise.then(({ module, memory }) => {
+      //     time.compileTime = performance.now() - now;
+
+      //     now = performance.now();
+      //     console.log(`start at ${now}`);
+
+      //     module.run();
+
+      //     self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
+      //     stringToSend = '';
+
+      //     console.log('memory', memory);
+
+      //     const end = performance.now();
+
+      //     console.log(`end at ${end}`);
+
+      //     time.runTime = end - now;
+
+      //   self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
+      // });
     }
 
     if (message.type === WorkerEvent.setWat2Wasm) {
