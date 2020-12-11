@@ -252,7 +252,7 @@ function compileToJS(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunctio
 }
 
 function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
-  const code = compileToJS(ops, inF, outF);
+  const code = compile_ast(ops, inF, outF);
 
   (self as any)[memoryName] = new Uint8Array(30000);
 
@@ -265,9 +265,84 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
 }
 
 function _compileToJS(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): string {
-  const code = `const ${memoryName} = new Uint8Array(30000);\n` + compileToJS(ops, inF, outF);
+  const code = `const ${memoryName} = new Uint8Array(30000);\n` + compile_ast(ops, inF, outF);
 
   return code;
+}
+
+function compile_ast(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) {
+  const memoryName = '__m__';
+  const dataptr = 'p';
+  const cached_dataptr = 'cp';
+  const inFName = inF.name;
+  const outFName = outF.name;
+  const offset_stack = [];
+  const coder = new TextCoder();
+  let offset = 0;
+  let loop_data_offset = 0;
+  let loop_data_offsets = [];
+
+  (self as any)[memoryName] = new Uint8Array(30000);
+
+  coder.encode(`let ${dataptr} = 0;\n`)
+
+  function travers(ast: any) {
+    ast.body.forEach((op: any) => {
+      if (op.type === 1) {
+        switch (op.operator) {
+          case '>': {
+            coder.encode(`${dataptr} += ${op.argument};\n`)
+
+            break;
+          }
+
+          case '<': {
+            coder.encode(`${dataptr} -= ${op.argument};\n`)
+
+            break;
+          }
+
+          case '+': {
+            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${op.argument};\n`)
+
+            break;
+          }
+
+          case '-': {
+            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${op.argument};\n`)
+
+            break;
+          }
+
+          case ',': {
+            coder.encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${offsetDataptr(dataptr, offset)}] = ${inFName}();\n`)
+
+            break;
+          }
+
+          case '.': {
+            if (op.argument < 2) {
+              coder.encode(`${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`)
+            } else {
+              coder.encode(`for (let i = 0; i < ${op.argument}; i++) ${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`)
+            }
+
+            break;
+          }
+        }
+      } else {
+        coder.encode(`while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`)
+
+        travers(op);
+
+        coder.encode(`}\n`)
+      }
+    });
+  }
+
+  travers(ops);
+
+  return coder.decode();
 }
 
 export {
