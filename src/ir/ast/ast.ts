@@ -1,35 +1,38 @@
 import { OpcodeLoc } from 'ir/opcode';
+import { OpKind } from 'ir/opcode-kinds';
 import { Token } from 'ir/token';
 import { TokenKind } from 'ir/token-kinds';
 
 export type Ast = Program;
 
 type LoopBlock = {
-  type: Symbol.BlockStatement,
+  type: ParseSymbol.BlockStatement,
   loc: OpcodeLoc,
   argument: number,
   operator: string,
   body: Array<LoopBlock | Expression>,
+  opkode: OpKind,
 }
 
 type Expression = {
-  type: Symbol.ExpressionStatement,
+  type: ParseSymbol.ExpressionStatement,
   loc: OpcodeLoc,
   argument: number,
   operator: string,
+  opkode: OpKind,
 }
 
-type Nodes = LoopBlock | Expression;
+export type Nodes = LoopBlock | Expression;
 
 type Program = {
-  type: Symbol,
+  type: ParseSymbol,
   loc: OpcodeLoc,
   argument: number,
   operator: string | 'Program',
   body: Array<Nodes>,
 }
 
-enum Symbol {
+export enum ParseSymbol {
   ProgramStatement = 0,
   BlockStatement = 0,
   ExpressionStatement = 1,
@@ -41,11 +44,11 @@ enum Symbol {
 
 const token_to_symbol_tabel = new Uint8Array(4);
 token_to_symbol_tabel[0] = 255;
-token_to_symbol_tabel[TokenKind.BLOCK_START + 1] = Symbol.BlockStartTerminate;
-token_to_symbol_tabel[TokenKind.BLOCK_END + 1] = Symbol.BlockEndTerminate;
-token_to_symbol_tabel[TokenKind.EXPRESION + 1] = Symbol.ExpresionTerminate;
+token_to_symbol_tabel[TokenKind.BLOCK_START + 1] = ParseSymbol.BlockStartTerminate;
+token_to_symbol_tabel[TokenKind.BLOCK_END + 1] = ParseSymbol.BlockEndTerminate;
+token_to_symbol_tabel[TokenKind.EXPRESION + 1] = ParseSymbol.ExpresionTerminate;
 
-const symbols_count = Object.keys(Symbol).length;
+const symbols_count = Object.keys(ParseSymbol).length;
 const token_count = 4;
 
 function to_linear_index(symbol: number, kind: number): number {
@@ -66,20 +69,37 @@ function to_linear_index(symbol: number, kind: number): number {
   Expression        -> ExpresionTerminate      (3)
 */
 const table_rules = new Uint8Array(symbols_count * token_count);
-table_rules[to_linear_index(Symbol.BlockStatement, TokenKind.BLOCK_START + 1)]    = 2;
-table_rules[to_linear_index(Symbol.BlockStatement, TokenKind.EXPRESION + 1)]      = 1;
+table_rules[to_linear_index(ParseSymbol.BlockStatement, TokenKind.BLOCK_START + 1)]    = 2;
+table_rules[to_linear_index(ParseSymbol.BlockStatement, TokenKind.EXPRESION + 1)]      = 1;
 
-table_rules[to_linear_index(Symbol.ExpressionStatement, TokenKind.EXPRESION + 1)] = 3;
+table_rules[to_linear_index(ParseSymbol.ExpressionStatement, TokenKind.EXPRESION + 1)] = 3;
+
+function operator_to_opcede(operator: string): OpKind {
+  switch (operator) {
+    case '>': return OpKind.INC_PTR;
+    case '<': return OpKind.DEC_PTR;
+    case '+': return OpKind.INC_DATA;
+    case '-': return OpKind.DEC_DATA;
+    case '.': return OpKind.WRITE_STDOUT;
+    case ',': return OpKind.READ_STDIN;
+    case '[': return OpKind.LOOP_START;
+    case ']': return OpKind.LOOP_START_END;
+    default: { console.warn('uknown operator: ' + operator); break; }
+  }
+
+  return OpKind.INVALID_OP;
+}
 
 export function parse_to_ast(tokens: Array<Token>): Ast {
-  const stack: Array<Symbol | number> = [Symbol.ProgramStatement];
+  const stack: Array<ParseSymbol | number> = [ParseSymbol.ProgramStatement];
   const stack_block_start = [];
   let root: LoopBlock = {
-    type: Symbol.ProgramStatement,
+    type: ParseSymbol.ProgramStatement,
     loc: { line: 0, start: 0, end: 0 },
     body: [],
     argument: 1,
-    operator: 'Program'
+    operator: 'Program',
+    opkode: OpKind.LOOP_START,
   };
   let cur = 0;
   let token = next_token();
@@ -100,14 +120,15 @@ export function parse_to_ast(tokens: Array<Token>): Ast {
     const symbol = pick_symbol();
     const kind = token ? token.kind + 1 : 0;
 
-    if (symbol - Symbol.BlockStartTerminate >= 0) {
+    if (symbol - ParseSymbol.BlockStartTerminate >= 0) {
       if (symbol === token_to_symbol_tabel[kind]) {
         if (token.kind === TokenKind.EXPRESION) {
           const exp: Expression = {
-            type: Symbol.ExpressionStatement,
+            type: ParseSymbol.ExpressionStatement,
             loc: token.loc,
             operator: token.operator,
             argument: token.argument,
+            opkode: operator_to_opcede(token.operator),
           };
           root.body.push(exp);
         }
@@ -140,27 +161,34 @@ export function parse_to_ast(tokens: Array<Token>): Ast {
       }
 
       case 1: {
-        stack.push(Symbol.ExpressionStatement);
+        stack.push(ParseSymbol.ExpressionStatement);
 
         break;
       }
 
       case 2: {
         stack_block_start.push(root);
-        root = { type: Symbol.BlockStatement, loc: token.loc, operator: token.operator, argument: token.argument, body: [] };
+        root = {
+          type: ParseSymbol.BlockStatement,
+          loc: token.loc,
+          operator: token.operator,
+          argument: token.argument,
+          body: [],
+          opkode: OpKind.LOOP_START,
+        };
         root.loc.start = token.loc.start;
         root.loc.line = token.loc.line;
 
-        stack.push(Symbol.BlockEndTerminate);
-        stack.push(Symbol.BlockStatement);
-        stack.push(Symbol.BlockStartTerminate);
+        stack.push(ParseSymbol.BlockEndTerminate);
+        stack.push(ParseSymbol.BlockStatement);
+        stack.push(ParseSymbol.BlockStartTerminate);
 
         break;
       }
 
       case 3: {
         stack.pop();
-        stack.push(Symbol.ExpresionTerminate);
+        stack.push(ParseSymbol.ExpresionTerminate);
 
         break;
       }
