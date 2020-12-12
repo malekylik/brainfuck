@@ -1,6 +1,3 @@
-import 'core-js/stable';
-import 'regenerator-runtime/runtime';
-
 import { parse_from_stream } from './utils/parser';
 import { translate_program, translate_program_to_ast } from 'ir/parser';
 import { OptimizationKind } from 'ir/optimization-kinds';
