@@ -1,6 +1,6 @@
 import { OpKind } from './opcode-kinds';
 
-type OpcodeLoc = {
+export type OpcodeLoc = {
   start: number;
   end: number;
   line: number;

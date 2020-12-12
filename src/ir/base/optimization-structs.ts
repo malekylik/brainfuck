@@ -1,5 +1,4 @@
-import { Opcode } from './opcode';
-import { OpKind } from './opcode-kinds';
+import { Opcode } from 'ir/opcode';
 
 interface DoubeLinkedNode<T> {
   prev_prt: DoubeLinkedNode<T>,

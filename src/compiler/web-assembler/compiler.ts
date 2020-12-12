@@ -490,17 +490,17 @@ function compileFromOpcodeToWasm(ops: Array<Opcode>): Uint8Array {
           break;
         }
 
-        // case OpKind.INC_OFFSET: {
-        //   offset += op.argument;
+        case OpKind.INC_OFFSET: {
+          offset += op.argument;
 
-        //   break;
-        // }
+          break;
+        }
 
-        // case OpKind.DEC_OFFSET: {
-        //   offset -= op.argument;
+        case OpKind.DEC_OFFSET: {
+          offset -= op.argument;
 
-        //   break;
-        // }
+          break;
+        }
 
         case OpKind.INC_DATA: {
           code.push(

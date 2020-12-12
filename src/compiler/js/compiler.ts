@@ -3,6 +3,7 @@ import { Opcode } from 'ir/opcode';
 import { opKindToChar } from 'ir/utils';
 import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
 import { TextCoder } from 'utils/text-coder';
+import { Ast } from 'ir/ast/ast';
 
 function offsetDataptr(dataptr: string, offset: number): string {
   return `${dataptr} + ${offset}`;
@@ -251,7 +252,7 @@ function compileToJS(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunctio
   return coder.decode();
 }
 
-function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
+function compile_prod(ops: Ast, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
   const code = compile_ast(ops, inF, outF);
 
   (self as any)[memoryName] = new Uint8Array(30000);
@@ -264,13 +265,13 @@ function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFuncti
   });
 }
 
-function _compileToJS(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): string {
+function _compileToJS(ops: Ast, inF: InputFunction, outF: OutputFunction): string {
   const code = `const ${memoryName} = new Uint8Array(30000);\n` + compile_ast(ops, inF, outF);
 
   return code;
 }
 
-function compile_ast(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) {
+function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
   const memoryName = '__m__';
   const dataptr = 'p';
   const cached_dataptr = 'cp';
@@ -286,7 +287,7 @@ function compile_ast(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunctio
 
   coder.encode(`let ${dataptr} = 0;\n`)
 
-  function travers(ast: any) {
+  function travers(ast: Ast) {
     ast.body.forEach((op: any) => {
       if (op.type === 1) {
         switch (op.operator) {

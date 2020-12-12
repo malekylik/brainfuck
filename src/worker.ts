@@ -2,7 +2,7 @@ import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 
 import { parse_from_stream } from './utils/parser';
-import { translate_program } from 'ir/parser';
+import { translate_program, translate_program_to_ast } from 'ir/parser';
 import { OptimizationKind } from 'ir/optimization-kinds';
 import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
@@ -66,19 +66,26 @@ self.addEventListener('message', (e) => {
     }
 
     if (mode === BrainfuckMode.InterpretWithIR || mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
-      const ops = translate_program(tokens, OptimizationKind.C2);
-      let compile = null;
-
       switch (mode) {
-        case BrainfuckMode.InterpretWithIR: compile = OptimizedInterpret; break;
-        case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
-        case BrainfuckMode.CompileWebAssembly: compile = compileWasm; break;
+        case BrainfuckMode.InterpretWithIR: {
+          const ops = translate_program(tokens, OptimizationKind.C1);
+          modulePromise = OptimizedInterpret(ops, inF, outF);
+          break;
+        }
+        case BrainfuckMode.CompileJavaScript: {
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+          modulePromise = compileJS(ops, inF, outF);
+          console.log(ops);
+          break;
+        }
+        case BrainfuckMode.CompileWebAssembly: {
+          const ops = translate_program(tokens, OptimizationKind.C2);
+          modulePromise = compileWasm(ops, inF, outF);
+          console.log(ops);
+          break;
+        }
         // case BrainfuckMode.CompileWebAssembly: compile = (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF); break;
       }
-
-      modulePromise = compile(ops as any, inF, outF);
-
-      console.log(ops);
     }
 
     modulePromise.then(({ module, memory }) => {
@@ -114,12 +121,19 @@ self.addEventListener('message', (e) => {
   if (message.type === WorkerEvent.getGeneratedCode) {
     const { mode, src } = message.data;
     const tokens = parse_from_stream(src);
-    const ops = translate_program(tokens, OptimizationKind.C2);
     let compiled = '';
 
     switch (mode) {
-      case BrainfuckMode.CompileJavaScript: compiled = compileToJS(ops as any, inF, outF); break;
-      case BrainfuckMode.CompileWebAssembly: compiled = compileToWat(ops as any); break;
+      case BrainfuckMode.CompileJavaScript: {
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+        compiled = compileToJS(ops, inF, outF);
+        break;
+      }
+      case BrainfuckMode.CompileWebAssembly: {
+        const ops = translate_program(tokens, OptimizationKind.C2);
+        compiled = compileToWat(ops);
+        break;
+      }
     }
 
     self.postMessage({ type: WorkerEvent.getGeneratedCode, data: { mode, src: compiled } });
