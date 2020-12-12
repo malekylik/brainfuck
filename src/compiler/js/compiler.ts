@@ -299,6 +299,18 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
             break;
           }
 
+          case OpKind.INC_OFFSET: {
+            offset += op.argument;
+
+            break;
+          }
+
+          case OpKind.DEC_OFFSET: {
+            offset -= op.argument;
+
+            break;
+          }
+
           case OpKind.INC_DATA: {
             coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${op.argument};\n`);
 

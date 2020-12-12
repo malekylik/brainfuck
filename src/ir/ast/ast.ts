@@ -5,13 +5,15 @@ import { TokenKind } from 'ir/token-kinds';
 
 export type Ast = Program;
 
-type LoopBlock = {
+export type LoopBlock = {
   type: ParseSymbol.BlockStatement,
   loc: OpcodeLoc,
   argument: number,
   operator: string,
   body: Array<LoopBlock | Expression>,
   opkode: OpKind,
+  is_pure: boolean,
+  update_by: number,
 }
 
 type Expression = {
@@ -90,6 +92,36 @@ function operator_to_opcede(operator: string): OpKind {
   return OpKind.INVALID_OP;
 }
 
+function check_block_for_pure(ast: Ast): Ast {
+  function check_for_change_prt(op: LoopBlock) {
+    let current_ptr = 0;
+    let updater = 0;
+
+    op.body.forEach((n) => {
+      if (n.opkode === OpKind.INC_PTR) {
+        current_ptr += n.argument;
+      } else if (n.opkode === OpKind.DEC_PTR) {
+        current_ptr -= n.argument;
+      } else if (n.opkode === OpKind.INC_DATA && current_ptr === 0) {
+        updater += n.argument;
+      } else if (n.opkode === OpKind.DEC_DATA && current_ptr === 0) {
+        updater -= n.argument;
+      }
+
+      if (n.type === ParseSymbol.BlockStatement) {
+        check_for_change_prt(n);
+      }
+    });
+  
+    op.is_pure = current_ptr === 0;
+    op.update_by = updater;
+  }
+
+  check_for_change_prt(ast as LoopBlock);
+
+  return ast;
+}
+
 export function parse_to_ast(tokens: Array<Token>): Ast {
   const stack: Array<ParseSymbol | number> = [ParseSymbol.ProgramStatement];
   const stack_block_start = [];
@@ -100,6 +132,8 @@ export function parse_to_ast(tokens: Array<Token>): Ast {
     argument: 1,
     operator: 'Program',
     opkode: OpKind.LOOP_START,
+    is_pure: true,
+    update_by: -1,
   };
   let cur = 0;
   let token = next_token();
@@ -175,6 +209,8 @@ export function parse_to_ast(tokens: Array<Token>): Ast {
           argument: token.argument,
           body: [],
           opkode: OpKind.LOOP_START,
+          is_pure: true,
+          update_by: -1,
         };
         root.loc.start = token.loc.start;
         root.loc.line = token.loc.line;
@@ -208,6 +244,10 @@ export function parse_to_ast(tokens: Array<Token>): Ast {
   if (cur !== tokens.length) {
     console.warn('tokens are not empty: ' + cur);
   }
+
+  check_block_for_pure(root);
+
+  root.is_pure = true;
 
   return root;
 }

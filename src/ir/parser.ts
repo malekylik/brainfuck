@@ -4,6 +4,7 @@ import { optimize } from './base/optimization';
 import { path_jumptable } from './base/jumptable';
 import { Ast, parse_to_ast } from './ast/ast';
 import { parse_to_opcodes as parse_to_opcodes_for_ast } from './ast/translate_to_opcodes';
+import { optimize as optimize_ast } from './ast/optimization';
 import { Opcode } from './opcode';
 
 export function translate_program(tokens: Array<string>, optimization_kind: OptimizationKind): Array<Opcode> {
@@ -17,7 +18,10 @@ export function translate_program(tokens: Array<string>, optimization_kind: Opti
 }
 
 export function translate_program_to_ast(tokens: Array<string>, optimization_kind: OptimizationKind): Ast {
-  let ops = parse_to_opcodes_for_ast(tokens);
+  const ops = parse_to_opcodes_for_ast(tokens);
+  let ast = parse_to_ast(ops);
 
-  return parse_to_ast(ops);
+  ast = optimize_ast(ast, optimization_kind);
+
+  return ast;
 }
