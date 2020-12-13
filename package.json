@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
+    "test": "jest --colors",
     "compile": "tsc",
     "build": "webpack --mode=production --config webpack.config.js",
     "start": "webpack-dev-server --mode=development",

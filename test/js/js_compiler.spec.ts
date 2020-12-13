@@ -3,11 +3,22 @@ import { parse_from_stream } from 'utils/parser';
 import { OptimizationKind } from 'ir/optimization-kinds';
 import { compile as compileJS } from 'compiler/js/compiler';
 import { ioin, getIOOut } from '../mock';
-import { mandelbrot_answer, yapi_answer, hellom_answer } from '../data/bf_answers';
-import { mandelbrot_src, yapi_src, hellom_src } from '../data/bf_programs';
+import { mandelbrot_answer, yapi_answer, hellom_answer, beer_answer } from '../data/bf_answers';
+import { mandelbrot_src, yapi_src, hellom_src, beer_src } from '../data/bf_programs';
 
 describe('JS compiler', () => {
   describe('C2', () => {
+    it('beer', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(beer_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+      const modulePromise = await compileJS(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(beer_answer);
+    });
+
     it('hellom', async () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(hellom_src);
