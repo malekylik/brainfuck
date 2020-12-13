@@ -550,3 +550,9 @@ Take one down and pass it around
 export const char_answer = new Array(256).fill(0).map((v, i) => String.fromCharCode(i)).join('');
 
 export const pi_answer = `0\n\r3\n\r1\n\r4\n\r1\n\r1\n\r3\n\r5\n\r2\n\r3\n\r2\n\r`;
+
+export const oobrain_answer = `DRAWING A CIRCLE AT:(15,25), RADIUS 8
+DRAWING A RECTANGLE AT:(10,20), WIDTH 5, HEIGHT 6
+DRAWING A CIRCLE AT:(115,125), RADIUS 8
+DRAWING A RECTANGLE AT:(110,120), WIDTH 5, HEIGHT 6
+DRAWING A RECTANGLE AT:(0,0), WIDTH 30, HEIGHT 15\n`;
