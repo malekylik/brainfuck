@@ -6,18 +6,29 @@ import { ioin, getIOOut } from '../mock';
 import {
   mandelbrot_answer, yapi_answer,
   hellom_answer, beer_answer, char_answer,
-  pi_answer,
+  pi_answer, trinagle_answer,
   oobrain_answer,
 } from '../data/bf_answers';
 import {
   mandelbrot_src, yapi_src,
   hellom_src, beer_src, char_src,
-  pi_src,
+  pi_src, trianlge_src,
   oobrain_src,
 } from '../data/bf_programs';
 
 describe('JS compiler', () => {
   describe('C2', () => {
+    it('triangle', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(trianlge_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+      const modulePromise = await compileJS(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(trinagle_answer);
+    });
+
     it('oobrain', async () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(oobrain_src);
