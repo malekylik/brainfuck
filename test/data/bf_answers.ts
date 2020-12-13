@@ -548,3 +548,5 @@ Take one down and pass it around
 0 Bottles of beer on the wall\n\n`;
 
 export const char_answer = new Array(256).fill(0).map((v, i) => String.fromCharCode(i)).join('');
+
+export const pi_answer = `0\n\r3\n\r1\n\r4\n\r1\n\r1\n\r3\n\r5\n\r2\n\r3\n\r2\n\r`;
