@@ -13,6 +13,7 @@ export type LoopBlock = {
   body: Array<LoopBlock | Expression>,
   opkode: OpKind,
   is_pure: boolean,
+  search_by: number,
   update_by: number,
 }
 
@@ -24,7 +25,12 @@ type Expression = {
   opkode: OpKind,
 }
 
-export type Nodes = LoopBlock | Expression;
+export type MulExpression = Expression & {
+  opkode: OpKind.MUL_INC_DATA | OpKind.MUL_DEC_DATA,
+  loop_divider: number;
+}
+
+export type Nodes = LoopBlock | Expression | MulExpression;
 
 type Program = {
   type: ParseSymbol,
@@ -92,7 +98,7 @@ function operator_to_opcede(operator: string): OpKind {
   return OpKind.INVALID_OP;
 }
 
-function check_block_for_pure(ast: Ast): Ast {
+function check_block_for_search_loop(ast: Ast): Ast {
   function check_for_change_prt(op: LoopBlock) {
     let current_ptr = 0;
     let updater = 0;
@@ -113,11 +119,34 @@ function check_block_for_pure(ast: Ast): Ast {
       }
     });
   
-    op.is_pure = current_ptr === 0;
+    op.search_by = current_ptr;
     op.update_by = updater;
   }
 
   check_for_change_prt(ast as LoopBlock);
+
+  return ast;
+}
+
+function check_block_for_pure(ast: Ast): Ast {
+  function check(op: LoopBlock) {
+    let is_pure = !op.search_by;
+
+    op.body.forEach((n) => {
+      if (n.type === ParseSymbol.BlockStatement) {
+        check_block_for_pure(n);
+
+        // is_pure = is_pure && n.is_pure; // TODO: data loop inside data loop break the code
+        is_pure = false;
+      } else {
+        is_pure = is_pure && (n.opkode === OpKind.DEC_DATA || n.opkode === OpKind.INC_DATA || n.opkode === OpKind.DEC_PTR || n.opkode === OpKind.INC_PTR);
+      }
+    });
+
+    op.is_pure = is_pure;
+  }
+
+  check(ast as LoopBlock);
 
   return ast;
 }
@@ -132,7 +161,8 @@ export function parse_to_ast(tokens: Array<Token>): Ast {
     argument: 1,
     operator: 'Program',
     opkode: OpKind.LOOP_START,
-    is_pure: true,
+    search_by: 0,
+    is_pure: false,
     update_by: -1,
   };
   let cur = 0;
@@ -209,7 +239,8 @@ export function parse_to_ast(tokens: Array<Token>): Ast {
           argument: token.argument,
           body: [],
           opkode: OpKind.LOOP_START,
-          is_pure: true,
+          search_by: 0,
+          is_pure: false,
           update_by: -1,
         };
         root.loc.start = token.loc.start;
@@ -245,9 +276,12 @@ export function parse_to_ast(tokens: Array<Token>): Ast {
     console.warn('tokens are not empty: ' + cur);
   }
 
+  // order matter
+  check_block_for_search_loop(root);
   check_block_for_pure(root);
 
-  root.is_pure = true;
+  root.search_by = 0;
+  root.is_pure = false;
 
   return root;
 }
