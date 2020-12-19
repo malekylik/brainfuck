@@ -1,4 +1,3 @@
-import { createOpcode, Opcode } from 'ir/opcode';
 import { OpKind } from 'ir/opcode-kinds';
 import { OptimizationKind } from 'ir/optimization-kinds';
 import { Ast, LoopBlock, ParseSymbol, Nodes, MulExpression } from './ast';
@@ -8,26 +7,6 @@ function is_decrementing(n: Nodes): boolean {
     (n.opkode === OpKind.INC_DATA && n.argument < 0) ||
     (n.opkode === OpKind.DEC_DATA && n.argument > 0)
   );
-}
-
-function optimize_range_update(ops: Array<Opcode>, dec_ptr_strt: number): Array<Opcode> {
-  const new_ops = [];
-
-  // [-]>[-]>[-]>[-]>[-]>[-]>[-]>[-]>[-]<<<<<<<<<
-  let dec_ptr = dec_ptr_strt;
-  while (
-    dec_ptr - 2 >= 0 &&
-    ops[dec_ptr - 0].kind === OpKind.LOOP_SET_TO_ZERO &&
-    ops[dec_ptr - 1].kind === OpKind.INC_PTR &&
-    ops[dec_ptr - 1].argument === 1) {
-    dec_ptr -= 2;
-  }
-
-  if (dec_ptr_strt - dec_ptr > 3) {
-    new_ops.push(createOpcode(OpKind.RESET_DATA_RANGE, (dec_ptr_strt - dec_ptr) / 2, { start: 0, end: 0, line: 0 }));
-  }
-
-  return new_ops;
 }
 
 function optimize_c1(ops: Ast): Ast {
@@ -89,33 +68,6 @@ function optimize_c1(ops: Ast): Ast {
   {
     optimize_loop_set_to_zero(ops as LoopBlock);
   }
-
-  // // optimize_range_update
-  // {
-  //   let pc = 0;
-  //   const open_bracket_stack = [];
-
-  //   while (pc < ops.length) {
-  //     const instruction = ops[pc];
-
-  //     if (instruction.kind === OpKind.DEC_PTR) {
-  //       open_bracket_stack.push(pc);
-
-  //       // boost chrome performance from 105s 103ms to 18s 624ms
-  //       // todo: check the reason
-  //       const optimized_loop = optimize_range_update(ops, pc - 1);
-
-  //       if (optimized_loop.length !== 0 && optimized_loop[0].argument === instruction.argument) {
-  //         ops = update_ops(ops, optimized_loop, pc - (optimized_loop[0].argument * 2), pc);
-  //         continue;
-  //       }
-
-  //       pc++;
-  //     } else {
-  //       pc++;
-  //     }
-  //   }
-  // }
 
   // set_data
   {
