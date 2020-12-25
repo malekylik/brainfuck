@@ -1,9 +1,7 @@
 import { OpKind } from 'ir/opcode-kinds';
-import { Opcode } from 'ir/opcode';
-import { opKindToChar } from 'ir/utils';
 import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
 import { TextCoder } from 'utils/text-coder';
-import { Ast, MulExpression, Nodes, ParseSymbol } from 'ir/ast/ast';
+import { Ast, LoopBlock, MulExpression, Nodes, ParseSymbol } from 'ir/ast/ast';
 
 function offsetDataptr(dataptr: string, offset: number): string {
   return `${dataptr} + ${offset}`;
@@ -120,13 +118,27 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
 
           case OpKind.MUL_INC_DATA: {
             const loop_offset = offsetDataptr(dataptr, offset_move_start_stack[offset_move_start_stack.length - 1]);
-            let arg = op.argument === 1 ? `${memoryName}[${loop_offset}]` : `${op.argument} * ${memoryName}[${loop_offset}]`;
-            arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-            coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] += ${arg};\n`);
-            // let arg = op.argument === 1 ? `_` : `_ * ${op.argument}`;
+
+            // let arg = op.argument === 1 ? `${memoryName}[${loop_offset}]` : `${op.argument} * ${memoryName}[${loop_offset}]`;
             // arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
             // coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] += ${arg};\n`);
 
+            let arg = '';
+            let power = Math.log2(op.argument);
+
+            if (op.argument === 1) {
+              arg = `${memoryName}[${loop_offset}]`;
+            } else if (Number.isInteger(power)) {
+              arg = `${memoryName}[${loop_offset}] << ${power}`;
+            } else {
+              power = power | 0;
+              const mult = op.argument - (2 ** power);
+              const mult_str = mult === 1 ? '' : `* ${mult}`;
+              arg = `(${memoryName}[${loop_offset}] << ${power}) + ${memoryName}[${loop_offset}] ${mult_str}`;
+            }
+
+            arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
+            coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] += ${arg};\n`);
             break;
           }
 
@@ -135,9 +147,6 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
             let arg = op.argument === 1 ? `${memoryName}[${loop_offset}]` : `${op.argument} * ${memoryName}[${loop_offset}]`;
             arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
             coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${arg};\n`);
-            // let arg = op.argument === 1 ? `_` : `_ * ${op.argument}`;
-            // arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-            // coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${arg};\n`);
 
             break;
           }
@@ -146,6 +155,30 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
             coder.encode(
               `${memoryName}[${offsetDataptr(dataptr, offset)}] = ${op.argument};\n`
             );
+
+            break;
+          }
+
+          case OpKind.SEARCH_LOOP: {
+            coder.encode(
+              `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`
+            );
+            if (op.argument > 0) {
+              coder.encode(
+                `${dataptr} += ${op.argument};\n`
+              );
+            } else {
+              coder.encode(
+                `${dataptr} -= ${Math.abs(op.argument)};\n`
+              );
+            }
+            coder.encode(
+              `}\n`
+            );
+
+            // coder.encode(
+            //   `${dataptr} = search_loop(${dataptr}, ${offset}, ${op.argument});\n`
+            // );
 
             break;
           }

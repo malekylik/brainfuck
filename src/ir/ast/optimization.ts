@@ -64,14 +64,39 @@ function optimize_c1(ops: Ast): Ast {
     }
   }
 
+  function loop_search(ast: LoopBlock) {
+    for (let i = 0; i < ast.body.length; i++) {
+      const n = ast.body[i];
+
+      if (n.type === ParseSymbol.BlockStatement) {
+        if (n.body.length === 1 && (n.body[0].opkode === OpKind.DEC_PTR || n.body[0].opkode === OpKind.INC_PTR)) {
+          ast.body[i] = {
+            type: ParseSymbol.ExpressionStatement,
+            loc: n.loc,
+            operator: '?',
+            argument: n.search_by,
+            opkode: OpKind.SEARCH_LOOP,
+          }
+        } else {
+          loop_search(n);
+        }
+      }
+    }
+  }
+
   // c1_loop_optimizers
   {
-    optimize_loop_set_to_zero(ops as LoopBlock);
+    optimize_loop_set_to_zero(ops);
   }
 
   // set_data
   {
-    optimize_set_data(ops as LoopBlock);
+    optimize_set_data(ops);
+  }
+
+  // loop_search
+  {
+    loop_search(ops);
   }
 
   return ops;
@@ -157,13 +182,39 @@ function optimize_c2(ops: Ast): Ast {
     });
   }
 
+  function loop_search(ast: LoopBlock) {
+    for (let i = 0; i < ast.body.length; i++) {
+      const n = ast.body[i];
+
+      if (n.type === ParseSymbol.BlockStatement) {
+        if (n.body.length === 1 && (n.body[0].opkode === OpKind.DEC_PTR || n.body[0].opkode === OpKind.INC_PTR)) {
+          ast.body[i] = {
+            type: ParseSymbol.ExpressionStatement,
+            loc: n.loc,
+            operator: '?',
+            argument: n.search_by,
+            opkode: OpKind.SEARCH_LOOP,
+          }
+        } else {
+          loop_search(n);
+        }
+      }
+    }
+  }
+
   // optimize ptr shift in loops
   {
     // best performance together with optimize_ptr_shift otherwise need to be used addition variable which eats around 1s
     // current implementation without optimize_ptr_shift leads to error
-    optimize_loop_copy(ops as LoopBlock);
-    optimize_ptr_shift(ops as LoopBlock);
+    optimize_loop_copy(ops);
+    optimize_ptr_shift(ops);
   }
+
+    // loop_search
+    // {
+    //   loop_search(ops);
+    // }
+  
 
   return ops;
 }

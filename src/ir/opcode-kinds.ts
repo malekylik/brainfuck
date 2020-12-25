@@ -29,6 +29,7 @@ enum OpKind {
 
   MUL_INC_DATA = 'MUL_INC_DATA',
   MUL_DEC_DATA = 'MUL_DEC_DATA',
+  SEARCH_LOOP = 'SEARCH_LOOP',
 };
 
 

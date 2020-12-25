@@ -33,11 +33,15 @@ export type MulExpression = Expression & {
 export type Nodes = LoopBlock | Expression | MulExpression;
 
 type Program = {
-  type: ParseSymbol,
+  type: ParseSymbol.ProgramStatement,
   loc: OpcodeLoc,
   argument: number,
   operator: string | 'Program',
   body: Array<Nodes>,
+  opkode: OpKind,
+  is_pure: boolean,
+  search_by: number,
+  update_by: number,
 }
 
 export enum ParseSymbol {
@@ -82,7 +86,7 @@ table_rules[to_linear_index(ParseSymbol.BlockStatement, TokenKind.EXPRESION + 1)
 
 table_rules[to_linear_index(ParseSymbol.ExpressionStatement, TokenKind.EXPRESION + 1)] = 3;
 
-function operator_to_opcede(operator: string): OpKind {
+function operator_to_opcode(operator: string): OpKind {
   switch (operator) {
     case '>': return OpKind.INC_PTR;
     case '<': return OpKind.DEC_PTR;
@@ -192,7 +196,7 @@ export function parse_to_ast(tokens: Array<Token>): Ast {
             loc: token.loc,
             operator: token.operator,
             argument: token.argument,
-            opkode: operator_to_opcede(token.operator),
+            opkode: operator_to_opcode(token.operator),
           };
           root.body.push(exp);
         }
