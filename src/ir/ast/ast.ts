@@ -17,7 +17,7 @@ export type LoopBlock = {
   update_by: number,
 }
 
-type Expression = {
+export type Expression = {
   type: ParseSymbol.ExpressionStatement,
   loc: OpcodeLoc,
   argument: number,
