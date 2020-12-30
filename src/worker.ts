@@ -70,13 +70,15 @@ self.addEventListener('message', (e) => {
           break;
         }
         case BrainfuckMode.CompileJavaScript: {
-          const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+          // const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
           modulePromise = compileJS(ops, inF, outF);
           console.log(ops);
           break;
         }
         case BrainfuckMode.CompileWebAssembly: {
-          const ops = translate_program(tokens, OptimizationKind.C2);
+          // const ops = translate_program(tokens, OptimizationKind.C0);
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
           modulePromise = compileWasm(ops, inF, outF);
           console.log(ops);
           break;

@@ -42,7 +42,6 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
   const outFName = outF.name;
   const coder = new TextCoder();
   const offset_move_start_stack: Array<number> = [];
-  let tabs = '';
   let offset = 0;
 
   (self as any)[memoryName] = new Uint8Array(30000);
@@ -54,13 +53,13 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
       if (op.type === ParseSymbol.ExpressionStatement) {
         switch (op.opkode) {
           case OpKind.INC_PTR: {
-            coder.encode(`${tabs}${dataptr} += ${op.argument};\n`);
+            coder.encode(`${dataptr} += ${op.argument};\n`);
 
             break;
           }
 
           case OpKind.DEC_PTR: {
-            coder.encode(`${tabs}${dataptr} -= ${op.argument};\n`);
+            coder.encode(`${dataptr} -= ${op.argument};\n`);
 
             break;
           }
@@ -78,19 +77,19 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
           }
 
           case OpKind.INC_DATA: {
-            coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] += ${op.argument};\n`);
+            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${op.argument};\n`);
 
             break;
           }
 
           case OpKind.DEC_DATA: {
-            coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${op.argument};\n`);
+            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${op.argument};\n`);
 
             break;
           }
 
           case OpKind.READ_STDIN: {
-            coder.encode(`${tabs}for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${offsetDataptr(dataptr, offset)}] = ${inFName}();\n`);
+            coder.encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${offsetDataptr(dataptr, offset)}] = ${inFName}();\n`);
 
             break;
           }
@@ -99,7 +98,7 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
             if (op.argument < 2) {
               coder.encode(`${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`);
             } else {
-              coder.encode(`${tabs}for (let i = 0; i < ${op.argument}; i++) ${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`);
+              coder.encode(`for (let i = 0; i < ${op.argument}; i++) ${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`);
             }
 
             break;
@@ -107,10 +106,7 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
 
           case OpKind.LOOP_SET_TO_ZERO: {
             coder.encode(
-              `${tabs}// set to zero loop\n`
-            );
-            coder.encode(
-              `${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`
+              `${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`
             );
 
             break;
@@ -118,10 +114,6 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
 
           case OpKind.MUL_INC_DATA: {
             const loop_offset = offsetDataptr(dataptr, offset_move_start_stack[offset_move_start_stack.length - 1]);
-
-            // let arg = op.argument === 1 ? `${memoryName}[${loop_offset}]` : `${op.argument} * ${memoryName}[${loop_offset}]`;
-            // arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-            // coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] += ${arg};\n`);
 
             let arg = '';
             let power = Math.log2(op.argument);
@@ -138,7 +130,7 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
             }
 
             arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-            coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] += ${arg};\n`);
+            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${arg};\n`);
             break;
           }
 
@@ -146,7 +138,7 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
             const loop_offset = offsetDataptr(dataptr, offset_move_start_stack[offset_move_start_stack.length - 1]);
             let arg = op.argument === 1 ? `${memoryName}[${loop_offset}]` : `${op.argument} * ${memoryName}[${loop_offset}]`;
             arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-            coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${arg};\n`);
+            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${arg};\n`);
 
             break;
           }
@@ -176,44 +168,25 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
               `}\n`
             );
 
-            // coder.encode(
-            //   `${dataptr} = search_loop(${dataptr}, ${offset}, ${op.argument});\n`
-            // );
-
             break;
           }
         }
       } else {
         if (op.opkode === OpKind.LOOP_MOVE_DATA) {
-          // tabs += '  ';
-          if (op.is_pure) {
-            coder.encode(`${tabs}// pure loop\n`);
-          }
-          coder.encode(`${tabs}if (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`);
-          // coder.encode(`_ = ${memoryName}[${offsetDataptr(dataptr, offset)}];\n`);
-          // coder.encode(`let _ = ${memoryName}[${offsetDataptr(dataptr, offset)}];\n`);
+          coder.encode(`if (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`);
+
           offset_move_start_stack.push(offset);
-          // tabs += '  ';
 
           travers(op);
 
-          // tabs = tabs.slice(0, tabs.length - 2);
           offset_move_start_stack.pop();
-          coder.encode(`${tabs}}\n`);
+          coder.encode(`}\n`);
         } else {
-          if (!op.search_by) {
-            coder.encode(`${tabs}// search pure loop\n`);
-          }
-          if (op.is_pure) {
-            coder.encode(`${tabs}// pure loop\n`);
-          }
-          coder.encode(`${tabs}while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`);
-          // tabs += '  ';
+          coder.encode(`while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`);
 
           travers(op);
 
-          // tabs = tabs.slice(0, tabs.length - 2);
-          coder.encode(`${tabs}}\n`);
+          coder.encode(`}\n`);
         }
       }
     });

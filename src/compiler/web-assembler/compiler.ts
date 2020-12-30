@@ -5,6 +5,7 @@ import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
 import { emitter, Valtype, Opcodes } from './emitter';
 import { unsignedLEB128, signedLEB128 } from './encoding';
 import { TextCoder } from 'utils/text-coder';
+import { Ast, Nodes, ParseSymbol } from 'ir/ast/ast';
 
 function compileToWat(ops: Array<Opcode>): string {
   let coder = new TextCoder();
@@ -28,46 +29,297 @@ function compileToWat(ops: Array<Opcode>): string {
     `(func $run (local $p i32) (local $p_offset i32) (local $p_cached i32)\n`
   );
 
-    let pc = 0;
-    while (pc < ops.length) {
-      const op = ops[pc];
+  let pc = 0;
+  while (pc < ops.length) {
+    const op = ops[pc];
 
-      switch (op.kind) {
-        case OpKind.INC_PTR: {
+    switch (op.kind) {
+      case OpKind.INC_PTR: {
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${op.argument}\n` +
+          `i32.add\n` +
+          `local.set $p\n`
+        );
+
+        break;
+      }
+
+      case OpKind.DEC_PTR: {
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${op.argument}\n` +
+          `i32.sub\n` +
+          `local.set $p\n`
+        );
+
+        break;
+      }
+
+      case OpKind.INC_OFFSET: {
+        offset += op.argument;
+
+        break;
+      }
+
+      case OpKind.DEC_OFFSET: {
+        offset -= op.argument;
+
+        break;
+      }
+
+      case OpKind.INC_DATA: {
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${offset}\n` +
+          `i32.add\n` +
+          `local.tee $p_offset\n` +
+          `local.get $p_offset\n` +
+          `i32.load8_u\n` +
+          `i32.const ${op.argument}\n` +
+          `i32.add\n` +
+          `i32.store8\n`
+        );
+
+        break;
+      }
+
+      case OpKind.DEC_DATA: {
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${offset}\n` +
+          `i32.add\n` +
+          `local.tee $p_offset\n` +
+          `local.get $p_offset\n` +
+          `i32.load8_u\n` +
+          `i32.const ${op.argument}\n` +
+          `i32.sub\n` +
+          `i32.store8\n`
+        );
+
+        break;
+      }
+
+      case OpKind.READ_STDIN: {
+        // TO_DO add read char
+        // code.push(
+        //   encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${dataptr} + ${offset}] = ${inF}();\n`)
+        // );
+
+        break;
+      }
+
+      case OpKind.WRITE_STDOUT: {
+        // TO_DO add loop for out
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${offset}\n` +
+          `i32.add\n` +
+          `i32.load8_u\n` +
+          `call $print\n`
+        );
+
+        break;
+      }
+
+      case OpKind.LOOP_SET_TO_ZERO: {
+        // TODO: check store
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${offset}\n` +
+          `i32.add\n` +
+          `i32.const 0\n` +
+          `i32.store8\n`
+        );
+
+        break;
+      }
+
+      case OpKind.LOOP_MOVE_PTR: {
+        coder.encode(
+          `block\n` +
+          `loop\n` +
+          `local.get $p\n` +
+          `i32.const ${offset}\n` +
+          `i32.add\n` +
+          `local.tee $p_offset\n` +
+          `i32.load8_u\n` +
+          `i32.eqz\n` +
+          `br_if 1\n` +
+          `local.get $p\n` +
+          `i32.const ${op.argument}\n` +
+          `i32.add\n` +
+          `local.set $p\n` +
+          `br 0\n` +
+          `end\n` +
+          `end\n`
+        );
+
+        break;
+      }
+
+      case OpKind.LOOP_MOVE_DATA: {
+        // TODO can result in invalid memory access
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${offset}\n` +
+          `i32.add\n` +
+          `local.tee $p_offset\n` +
+          `i32.load8_u\n` +
+          `i32.const 0\n` +
+          `i32.gt_u\n` +
+          `if\n` +
+          `local.get $p_offset\n` +
+
+          // stack :
+          // 0: | data + offset |
+
+          `i32.const ${op.argument}\n` +
+          `i32.add\n` +
+
+          // stack :
+          // 0: | data + offset + op.argument |
+
+          `local.get $p_offset\n` +
+          `i32.const ${op.argument}\n` +
+          `i32.add\n` +
+
+          // stack :
+          // 0: | data + offset + op.argument |
+          // 1: | data + offset + op.argument |
+
+          `i32.load8_u\n` +
+
+          // stack :
+          // 0: | data + offset + op.argument |
+
+          `local.get $p_offset\n` +
+
+          // stack :
+          // 0: | data + offset |
+          // 1: | data + offset + op.argument |
+
+          `i32.load8_u\n` +
+
+          // stack :
+          // 0: | data + offset + op.argument |
+
+          `i32.add\n` +
+          `i32.store8\n` +
+
+          // stack :
+
+          `local.get $p_offset\n` +
+
+          // stack :
+          // 0: | data + offset |
+
+          `i32.const 0\n` +
+          `i32.store8\n` +
+          `end\n`
+        );
+
+        break;
+      }
+
+      case OpKind.JUMP_IF_DATA_ZERO: {
+        coder.encode(
+          `block\n` +
+          `loop\n` +
+          `local.get $p\n` +
+          `i32.const ${offset}\n` +
+          `i32.add\n` +
+          `i32.load8_u\n` +
+          `i32.eqz\n` +
+          `br_if 1\n`
+        );
+
+        offset_stack.push(offset);
+
+        break;
+      }
+
+      case OpKind.JUMP_IF_DATA_NOT_ZERO: {
+        coder.encode(
+          `br 0\n` +
+          `end\n` +
+          `end\n`
+        );
+
+        offset = offset_stack.pop();
+
+        break;
+      }
+
+      case OpKind.RESET_DATA_RANGE: {
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${offset}\n` +
+          `i32.add\n` +
+          `local.set $p_offset\n`
+        );
+
+        for (let i = 1; i < op.argument + 1; i++) {
           coder.encode(
-            `local.get $p\n` +
-            `i32.const ${op.argument}\n` +
+            `local.get $p_offset\n` +
+            `i32.const ${i}\n` +
             `i32.add\n` +
-            `local.set $p\n`
+            `local.tee $p_offset\n` +
+            `i32.const 0\n` +
+            `i32.store8\n`
           );
-
-          break;
         }
 
-        case OpKind.DEC_PTR: {
-          coder.encode(
-            `local.get $p\n` +
-            `i32.const ${op.argument}\n` +
-            `i32.sub\n` +
-            `local.set $p\n`
-          );
+        break;
+      }
 
-          break;
-        }
+      case OpKind.SET_DATA: {
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${offset}\n` +
+          `i32.add\n` +
+          `i32.const ${op.argument}\n` +
+          `i32.store8\n`
+        );
 
-        case OpKind.INC_OFFSET: {
-          offset += op.argument;
+        break;
+      }
 
-          break;
-        }
+      case OpKind.DATA_LOOP: {
+        loop_data_offset = offset;
+        loop_data_offsets.push(loop_data_offset);
 
-        case OpKind.DEC_OFFSET: {
-          offset -= op.argument;
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${offset}\n` +
+          `i32.add\n` +
+          `i32.load8_u\n` +
+          `i32.const 0\n` +
+          `i32.gt_u\n` +
+          `if\n`
+        );
 
-          break;
-        }
+        break;
+      }
 
-        case OpKind.INC_DATA: {
+      case OpKind.DATA_LOOP_END: {
+        coder.encode(
+          `local.get $p\n` +
+          `i32.const ${loop_data_offset}\n` +
+          `i32.add\n` +
+          `i32.const 0\n` +
+          `i32.store8\n` +
+          `end\n`
+        );
+
+        offset = loop_data_offsets.pop();
+        loop_data_offset = loop_data_offsets[loop_data_offsets.length - 1];
+
+        break;
+      }
+
+      case OpKind.DATA_LOOP_ADD: {
+        if (op.argument === 1) {
           coder.encode(
             `local.get $p\n` +
             `i32.const ${offset}\n` +
@@ -75,364 +327,113 @@ function compileToWat(ops: Array<Opcode>): string {
             `local.tee $p_offset\n` +
             `local.get $p_offset\n` +
             `i32.load8_u\n` +
-            `i32.const ${op.argument}\n` +
-            `i32.add\n` +
-            `i32.store8\n`
-          );
-
-          break;
-        }
-
-        case OpKind.DEC_DATA: {
-          coder.encode(
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `local.tee $p_offset\n` +
-            `local.get $p_offset\n` +
-            `i32.load8_u\n` +
-            `i32.const ${op.argument}\n` +
-            `i32.sub\n` +
-            `i32.store8\n`
-          );
-
-          break;
-        }
-
-        case OpKind.READ_STDIN: {
-          // TO_DO add read char
-          // code.push(
-          //   encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${dataptr} + ${offset}] = ${inF}();\n`)
-          // );
-
-          break;
-        }
-
-        case OpKind.WRITE_STDOUT: {
-          // TO_DO add loop for out
-          coder.encode(
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `i32.load8_u\n` +
-            `call $print\n`
-          );
-
-          break;
-        }
-
-        case OpKind.LOOP_SET_TO_ZERO: {
-          // TODO: check store
-          coder.encode(
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `i32.const 0\n` +
-            `i32.store8\n`
-          );
-
-          break;
-        }
-
-        case OpKind.LOOP_MOVE_PTR: {
-          coder.encode(
-            `block\n` +
-            `loop\n` +
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `local.tee $p_offset\n` +
-            `i32.load8_u\n` +
-            `i32.eqz\n` +
-            `br_if 1\n` +
-            `local.get $p\n` +
-            `i32.const ${op.argument}\n` +
-            `i32.add\n` +
-            `local.set $p\n` +
-            `br 0\n` +
-            `end\n` +
-            `end\n`
-          );
-
-          break;
-        }
-
-        case OpKind.LOOP_MOVE_DATA: {
-          // TODO can result in invalid memory access
-          coder.encode(
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `local.tee $p_offset\n` +
-            `i32.load8_u\n` +
-            `i32.const 0\n` +
-            `i32.gt_u\n` +
-            `if\n` +
-            `local.get $p_offset\n` +
-
-            // stack :
-            // 0: | data + offset |
-
-            `i32.const ${op.argument}\n` +
-            `i32.add\n` +
-
-            // stack :
-            // 0: | data + offset + op.argument |
-
-            `local.get $p_offset\n` +
-            `i32.const ${op.argument}\n` +
-            `i32.add\n` +
-
-            // stack :
-            // 0: | data + offset + op.argument |
-            // 1: | data + offset + op.argument |
-
-            `i32.load8_u\n` +
-
-            // stack :
-            // 0: | data + offset + op.argument |
-
-            `local.get $p_offset\n` +
-
-            // stack :
-            // 0: | data + offset |
-            // 1: | data + offset + op.argument |
-
-            `i32.load8_u\n` +
-
-            // stack :
-            // 0: | data + offset + op.argument |
-
-            `i32.add\n` +
-            `i32.store8\n` +
-
-            // stack :
-
-            `local.get $p_offset\n` +
-
-            // stack :
-            // 0: | data + offset |
-
-            `i32.const 0\n` +
-            `i32.store8\n` +
-            `end\n`
-          );
-
-          break;
-        }
-
-        case OpKind.JUMP_IF_DATA_ZERO: {
-          coder.encode(
-            `block\n` +
-            `loop\n` +
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `i32.load8_u\n` +
-            `i32.eqz\n` +
-            `br_if 1\n`
-          );
-
-          offset_stack.push(offset);
-
-          break;
-        }
-
-        case OpKind.JUMP_IF_DATA_NOT_ZERO: {
-          coder.encode(
-            `br 0\n` +
-            `end\n` +
-            `end\n`
-          );
-
-          offset = offset_stack.pop();
-
-          break;
-        }
-
-        case OpKind.RESET_DATA_RANGE: {
-          coder.encode(
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `local.set $p_offset\n`
-          );
-
-          for (let i = 1; i < op.argument + 1; i++) {
-            coder.encode(
-              `local.get $p_offset\n` +
-              `i32.const ${i}\n` +
-              `i32.add\n` +
-              `local.tee $p_offset\n` +
-              `i32.const 0\n` +
-              `i32.store8\n`
-            );
-          }
-
-          break;
-        }
-
-        case OpKind.SET_DATA: {
-          coder.encode(
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `i32.const ${op.argument}\n` +
-            `i32.store8\n`
-          );
-
-          break;
-        }
-
-        case OpKind.DATA_LOOP: {
-          loop_data_offset = offset;
-          loop_data_offsets.push(loop_data_offset);
-
-          coder.encode(
-            `local.get $p\n` +
-            `i32.const ${offset}\n` +
-            `i32.add\n` +
-            `i32.load8_u\n` +
-            `i32.const 0\n` +
-            `i32.gt_u\n` +
-            `if\n`
-          );
-
-          break;
-        }
-
-        case OpKind.DATA_LOOP_END: {
-          coder.encode(
             `local.get $p\n` +
             `i32.const ${loop_data_offset}\n` +
             `i32.add\n` +
-            `i32.const 0\n` +
-            `i32.store8\n` +
-            `end\n`
+            `i32.load8_u\n` +
+            `i32.add\n` +
+            `i32.store8\n`
           );
-
-          offset = loop_data_offsets.pop();
-          loop_data_offset = loop_data_offsets[loop_data_offsets.length - 1];
-
-          break;
-        }
-
-        case OpKind.DATA_LOOP_ADD: {
-          if (op.argument === 1) {
-            coder.encode(
-              `local.get $p\n` +
-              `i32.const ${offset}\n` +
-              `i32.add\n` +
-              `local.tee $p_offset\n` +
-              `local.get $p_offset\n` +
-              `i32.load8_u\n` +
-              `local.get $p\n` +
-              `i32.const ${loop_data_offset}\n` +
-              `i32.add\n` +
-              `i32.load8_u\n` +
-              `i32.add\n` +
-              `i32.store8\n`
-            );
-          } else {
-            coder.encode(
-              `local.get $p\n` +
-              `i32.const ${offset}\n` +
-              `i32.add\n` +
-              `local.tee $p_offset\n` +
-              `local.get $p_offset\n` +
-              `i32.load8_u\n` +
-              `local.get $p\n` +
-              `i32.const ${loop_data_offset}\n` +
-              `i32.add\n` +
-              `i32.load8_u\n` +
-              `i32.const ${op.argument}\n` +
-              `i32.mul\n` +
-              `i32.add\n` +
-              `i32.store8\n`
-            );
-          }
-
-          break;
-        }
-
-        case OpKind.DATA_LOOP_SUB: {
-          if (op.argument === 1) {
-            coder.encode(
-              `local.get $p\n` +
-              `i32.const ${offset}\n` +
-              `i32.add\n` +
-              `local.tee $p_offset\n` +
-              `local.get $p_offset\n` +
-              `i32.load8_u\n` +
-              `local.get $p\n` +
-              `i32.const ${loop_data_offset}\n` +
-              `i32.add\n` +
-              `i32.load8_u\n` +
-              `i32.sub\n` +
-              `i32.store8\n`
-            );
-          } else {
-            coder.encode(
-              `local.get $p\n` +
-              `i32.const ${offset}\n` +
-              `i32.add\n` +
-              `local.tee $p_offset\n` +
-              `local.get $p_offset\n` +
-              `i32.load8_u\n` +
-              `local.get $p\n` +
-              `i32.const ${loop_data_offset}\n` +
-              `i32.add\n` +
-              `i32.load8_u\n` +
-              `i32.const ${op.argument}\n` +
-              `i32.mul\n` +
-              `i32.sub\n` +
-              `i32.store8\n`
-            );
-          }
-
-          break;
-        }
-
-        case OpKind.STORE_DATAPTR: {
+        } else {
           coder.encode(
             `local.get $p\n` +
-            `local.set $p_cached\n`
+            `i32.const ${offset}\n` +
+            `i32.add\n` +
+            `local.tee $p_offset\n` +
+            `local.get $p_offset\n` +
+            `i32.load8_u\n` +
+            `local.get $p\n` +
+            `i32.const ${loop_data_offset}\n` +
+            `i32.add\n` +
+            `i32.load8_u\n` +
+            `i32.const ${op.argument}\n` +
+            `i32.mul\n` +
+            `i32.add\n` +
+            `i32.store8\n`
           );
-
-          break;
         }
 
-        case OpKind.GET_DATAPTR: {
-          coder.encode(
-            `local.get $p_cached\n` +
-            `local.set $p\n`
-          );
-
-          break;
-        }
-
-        default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
+        break;
       }
-  
-      pc++;
+
+      case OpKind.DATA_LOOP_SUB: {
+        if (op.argument === 1) {
+          coder.encode(
+            `local.get $p\n` +
+            `i32.const ${offset}\n` +
+            `i32.add\n` +
+            `local.tee $p_offset\n` +
+            `local.get $p_offset\n` +
+            `i32.load8_u\n` +
+            `local.get $p\n` +
+            `i32.const ${loop_data_offset}\n` +
+            `i32.add\n` +
+            `i32.load8_u\n` +
+            `i32.sub\n` +
+            `i32.store8\n`
+          );
+        } else {
+          coder.encode(
+            `local.get $p\n` +
+            `i32.const ${offset}\n` +
+            `i32.add\n` +
+            `local.tee $p_offset\n` +
+            `local.get $p_offset\n` +
+            `i32.load8_u\n` +
+            `local.get $p\n` +
+            `i32.const ${loop_data_offset}\n` +
+            `i32.add\n` +
+            `i32.load8_u\n` +
+            `i32.const ${op.argument}\n` +
+            `i32.mul\n` +
+            `i32.sub\n` +
+            `i32.store8\n`
+          );
+        }
+
+        break;
+      }
+
+      case OpKind.STORE_DATAPTR: {
+        coder.encode(
+          `local.get $p\n` +
+          `local.set $p_cached\n`
+        );
+
+        break;
+      }
+
+      case OpKind.GET_DATAPTR: {
+        coder.encode(
+          `local.get $p_cached\n` +
+          `local.set $p\n`
+        );
+
+        break;
+      }
+
+      default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
     }
 
-    coder.encode(
-      `)\n` // end func
-    );
+    pc++;
+  }
 
-    coder.encode(`(export "run" (func $run))\n`);
+  coder.encode(
+    `)\n` // end func
+  );
 
-    coder.encode(
-      `)` // end module
-    );
+  coder.encode(`(export "run" (func $run))\n`);
 
-    const text = coder.decode();
+  coder.encode(
+    `)` // end module
+  );
 
-    return text;
+  const text = coder.decode();
+
+  return text;
 }
 
-function compileFromOpcodeToWasm(ops: Array<Opcode>): Uint8Array {
+function compileFromOpcodeToWasm_(ops: Array<Opcode>): Uint8Array {
   const code: Array<number> = [];
   const offset_stack = [];
   let offset = 0;
@@ -448,16 +449,728 @@ function compileFromOpcodeToWasm(ops: Array<Opcode>): Uint8Array {
     Valtype.i32,
   );
 
+  let pc = 0;
+  while (pc < ops.length) {
+    const op = ops[pc];
+
+    switch (op.kind) {
+      case OpKind.INC_PTR: {
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...unsignedLEB128(op.argument),
+
+          Opcodes.i32_add,
+
+          Opcodes.set_local,
+          ...p,
+        );
+
+        break;
+      }
+
+      case OpKind.DEC_PTR: {
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...unsignedLEB128(op.argument),
+
+          Opcodes.i32_sub,
+
+          Opcodes.set_local,
+          ...p,
+        );
+
+        break;
+      }
+
+      case OpKind.INC_OFFSET: {
+        offset += op.argument;
+
+        break;
+      }
+
+      case OpKind.DEC_OFFSET: {
+        offset -= op.argument;
+
+        break;
+      }
+
+      case OpKind.INC_DATA: {
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.tee_local,
+          ...p_offset,
+
+          Opcodes.get_local,
+          ...p_offset,
+
+          Opcodes.i32_load8_u,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+          Opcodes.i32_const,
+          ...signedLEB128(op.argument),
+
+          Opcodes.i32_add,
+
+          Opcodes.i32_store8,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+        );
+
+        break;
+      }
+
+      case OpKind.DEC_DATA: {
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.tee_local,
+          ...p_offset,
+
+          Opcodes.get_local,
+          ...p_offset,
+
+          Opcodes.i32_load8_u,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+          Opcodes.i32_const,
+          ...signedLEB128(op.argument),
+
+          Opcodes.i32_sub,
+
+          Opcodes.i32_store8,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+        );
+
+        break;
+      }
+
+      case OpKind.READ_STDIN: {
+        // TO_DO add read char
+        // code.push(
+        //   encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${dataptr} + ${offset}] = ${inF}();\n`)
+        // );
+
+        break;
+      }
+
+      case OpKind.WRITE_STDOUT: {
+        // if (op.argument < 2) {
+        //   code.push(
+        //     encode(`${outF}(${memoryName}[${dataptr} + ${offset}]);\n`)
+        //   ); 
+        // } else {
+        //   code.push(
+        //     encode(`for (let i = 0; i < ${op.argument}; i++) ${outF}(${memoryName}[${dataptr} + ${offset}]);\n`)
+        //   );
+        // }
+
+        // TO_DO add loop for out
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.i32_load8_u,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+          Opcodes.call,
+          ...unsignedLEB128(0),
+        );
+
+        break;
+      }
+
+      case OpKind.LOOP_SET_TO_ZERO: {
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.i32_const,
+          ...unsignedLEB128(0),
+
+          Opcodes.i32_store8,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+        );
+
+        break;
+      }
+
+      case OpKind.LOOP_MOVE_PTR: {
+        code.push(
+          Opcodes.block,
+          Valtype.void,
+          Opcodes.loop,
+          Valtype.void,
+
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.tee_local,
+          ...p_offset,
+
+          Opcodes.i32_load8_u,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+          Opcodes.i32_eqz,
+
+          Opcodes.br_if,
+          ...unsignedLEB128(1),
+
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(op.argument),
+
+          Opcodes.i32_add,
+
+          Opcodes.set_local,
+          ...p,
+
+          Opcodes.br,
+          ...unsignedLEB128(0),
+
+          Opcodes.end,
+          Opcodes.end,
+        );
+
+        break;
+      }
+
+      case OpKind.LOOP_MOVE_DATA: {
+        // TODO can result in invalid memory access
+        code.push(
+          // OK
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.tee_local,
+          ...p_offset,
+          // OK
+
+
+          Opcodes.i32_load8_u,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+
+          Opcodes.i32_const,
+          ...unsignedLEB128(0),
+
+          Opcodes.i32_gt_u,
+
+          Opcodes.if,
+          Valtype.void,
+
+          Opcodes.get_local,
+          ...p_offset,
+
+          // stack :
+          // 0: | data + offset |
+
+          Opcodes.i32_const,
+          ...signedLEB128(op.argument),
+
+          Opcodes.i32_add,
+
+          // stack :
+          // 0: | data + offset + op.argument |
+
+          Opcodes.get_local,
+          ...p_offset,
+
+          Opcodes.i32_const,
+          ...signedLEB128(op.argument),
+
+          Opcodes.i32_add,
+
+          // stack :
+          // 0: | data + offset + op.argument |
+          // 1: | data + offset + op.argument |
+
+          Opcodes.i32_load8_u,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+          // stack :
+          // 0: | data + offset + op.argument |
+
+          Opcodes.get_local,
+          ...p_offset,
+
+          // stack :
+          // 0: | data + offset |
+          // 1: | data + offset + op.argument |
+
+          Opcodes.i32_load8_u,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+          // stack :
+          // 0: | data + offset + op.argument |
+
+          Opcodes.i32_add,
+
+          Opcodes.i32_store8,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+
+          // OK
+          // stack :
+
+          Opcodes.get_local,
+          ...p_offset,
+
+          // stack :
+          // 0: | data + offset |
+
+          Opcodes.i32_const,
+          ...signedLEB128(0),
+
+          Opcodes.i32_store8,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+          Opcodes.end,
+        );
+
+        break;
+      }
+
+      case OpKind.JUMP_IF_DATA_ZERO: {
+        code.push(
+          Opcodes.block,
+          Valtype.void,
+          Opcodes.loop,
+          Valtype.void,
+
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.i32_load8_u,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+          Opcodes.i32_eqz,
+
+          Opcodes.br_if,
+          ...unsignedLEB128(1),
+        );
+
+        offset_stack.push(offset);
+
+        break;
+      }
+
+      case OpKind.JUMP_IF_DATA_NOT_ZERO: {
+        code.push(
+          Opcodes.br,
+          ...unsignedLEB128(0),
+          Opcodes.end,
+          Opcodes.end,
+        );
+
+
+        offset = offset_stack.pop();
+
+        break;
+      }
+
+      case OpKind.RESET_DATA_RANGE: {
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.set_local,
+          ...p_offset,
+        );
+
+
+        for (let i = 1; i < op.argument + 1; i++) {
+          code.push(
+            Opcodes.get_local,
+            ...p_offset,
+
+            Opcodes.i32_const,
+            ...unsignedLEB128(i),
+
+            Opcodes.i32_add,
+
+            Opcodes.tee_local,
+            ...p_offset,
+
+            Opcodes.i32_const,
+            ...unsignedLEB128(0),
+
+            Opcodes.i32_store8,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+          );
+        }
+
+        break;
+      }
+
+      case OpKind.SET_DATA: {
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.i32_const,
+          ...unsignedLEB128(op.argument),
+
+          Opcodes.i32_store8,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+        );
+
+        break;
+      }
+
+      case OpKind.DATA_LOOP: {
+        loop_data_offset = offset;
+        loop_data_offsets.push(loop_data_offset);
+
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.i32_load8_u,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+          Opcodes.i32_const,
+          ...unsignedLEB128(0),
+
+          Opcodes.i32_gt_u,
+
+          Opcodes.if,
+          Valtype.void,
+        );
+
+        break;
+      }
+
+      case OpKind.DATA_LOOP_END: {
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.i32_const,
+          ...signedLEB128(loop_data_offset),
+
+          Opcodes.i32_add,
+
+          Opcodes.i32_const,
+          ...signedLEB128(0),
+
+          Opcodes.i32_store8,
+          ...unsignedLEB128(0),
+          ...unsignedLEB128(0),
+
+          Opcodes.end,
+        );
+
+        offset = loop_data_offsets.pop();
+        loop_data_offset = loop_data_offsets[loop_data_offsets.length - 1];
+
+        break;
+      }
+
+      case OpKind.DATA_LOOP_ADD: {
+        if (op.argument === 1) {
+          code.push(
+            Opcodes.get_local,
+            ...p,
+
+            Opcodes.i32_const,
+            ...signedLEB128(offset),
+
+            Opcodes.i32_add,
+
+            Opcodes.tee_local,
+            ...p_offset,
+
+            Opcodes.get_local,
+            ...p_offset,
+
+            Opcodes.i32_load8_u,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+
+            Opcodes.get_local,
+            ...p,
+
+            Opcodes.i32_const,
+            ...signedLEB128(loop_data_offset),
+
+            Opcodes.i32_add,
+
+            Opcodes.i32_load8_u,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+
+            Opcodes.i32_add,
+
+            Opcodes.i32_store8,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+          );
+        } else {
+          code.push(
+            Opcodes.get_local,
+            ...p,
+
+            Opcodes.i32_const,
+            ...signedLEB128(offset),
+
+            Opcodes.i32_add,
+
+            Opcodes.tee_local,
+            ...p_offset,
+
+            Opcodes.get_local,
+            ...p_offset,
+
+            Opcodes.i32_load8_u,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+
+            Opcodes.get_local,
+            ...p,
+
+            Opcodes.i32_const,
+            ...signedLEB128(loop_data_offset),
+
+            Opcodes.i32_add,
+
+            Opcodes.i32_load8_u,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+
+            Opcodes.i32_const,
+            ...signedLEB128(op.argument),
+
+            Opcodes.i32_mul,
+
+            Opcodes.i32_add,
+
+            Opcodes.i32_store8,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+          );
+        }
+
+        break;
+      }
+
+      case OpKind.DATA_LOOP_SUB: {
+        if (op.argument === 1) {
+          code.push(
+            Opcodes.get_local,
+            ...p,
+
+            Opcodes.i32_const,
+            ...signedLEB128(offset),
+
+            Opcodes.i32_add,
+
+            Opcodes.tee_local,
+            ...p_offset,
+
+            Opcodes.get_local,
+            ...p_offset,
+
+            Opcodes.i32_load8_u,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+
+            Opcodes.get_local,
+            ...p,
+
+            Opcodes.i32_const,
+            ...signedLEB128(loop_data_offset),
+
+            Opcodes.i32_add,
+
+            Opcodes.i32_load8_u,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+
+            Opcodes.i32_sub,
+
+            Opcodes.i32_store8,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+          );
+        } else {
+          code.push(
+            Opcodes.get_local,
+            ...p,
+
+            Opcodes.i32_const,
+            ...signedLEB128(offset),
+
+            Opcodes.i32_add,
+
+            Opcodes.tee_local,
+            ...p_offset,
+
+            Opcodes.get_local,
+            ...p_offset,
+
+            Opcodes.i32_load8_u,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+
+            Opcodes.get_local,
+            ...p,
+
+            Opcodes.i32_const,
+            ...signedLEB128(loop_data_offset),
+
+            Opcodes.i32_add,
+
+            Opcodes.i32_load8_u,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+
+            Opcodes.i32_const,
+            ...signedLEB128(op.argument),
+
+            Opcodes.i32_mul,
+
+            Opcodes.i32_sub,
+
+            Opcodes.i32_store8,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+          );
+        }
+
+        break;
+      }
+
+      case OpKind.STORE_DATAPTR: {
+        code.push(
+          Opcodes.get_local,
+          ...p,
+
+          Opcodes.set_local,
+          ...p_cached,
+        );
+
+        break;
+      }
+
+      case OpKind.GET_DATAPTR: {
+        code.push(
+          Opcodes.get_local,
+          ...p_cached,
+
+          Opcodes.set_local,
+          ...p,
+        );
+
+        break;
+      }
+
+      default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
+    }
+
+    pc++;
+  }
+
+  return emitter(code);
+}
+
+function compileFromOpcodeToWasm(ops: Ast) {
+  const code: Array<number> = [];
+  const offset_move_start_stack: Array<number> = [];
+  let offset = 0;
+  let loop_data_offset = 0;
+  let loop_data_offsets = [];
+  const p = unsignedLEB128(0);
+  const p_offset = unsignedLEB128(1);
+  const p_cached = unsignedLEB128(2);
+
   code.push(
+    ...unsignedLEB128(1),
+    ...unsignedLEB128(3), // 3 of int32
+    Valtype.i32,
   );
 
-    let pc = 0;
-    while (pc < ops.length) {
-      const op = ops[pc];
-
-      switch (op.kind) {
-        case OpKind.INC_PTR: {
-          code.push(
+  function travers(ast: Ast) {
+    ast.body.forEach((op: Nodes) => {
+      if (op.type === ParseSymbol.ExpressionStatement) {
+        switch (op.opkode) {
+          case OpKind.INC_PTR: {
+            code.push(
               Opcodes.get_local,
               ...p,
 
@@ -468,324 +1181,212 @@ function compileFromOpcodeToWasm(ops: Array<Opcode>): Uint8Array {
 
               Opcodes.set_local,
               ...p,
-          );
+            );
 
-          break;
-        }
+            break;
+          }
 
-        case OpKind.DEC_PTR: {
-          code.push(
-            Opcodes.get_local,
-            ...p,
+          case OpKind.DEC_PTR: {
+            code.push(
+              Opcodes.get_local,
+              ...p,
 
-            Opcodes.i32_const,
-            ...unsignedLEB128(op.argument),
+              Opcodes.i32_const,
+              ...unsignedLEB128(op.argument),
 
-            Opcodes.i32_sub,
+              Opcodes.i32_sub,
 
-            Opcodes.set_local,
-            ...p,
-        );
+              Opcodes.set_local,
+              ...p,
+            );
 
-          break;
-        }
+            break;
+          }
 
-        case OpKind.INC_OFFSET: {
-          offset += op.argument;
+          case OpKind.INC_OFFSET: {
+            offset += op.argument;
 
-          break;
-        }
+            break;
+          }
 
-        case OpKind.DEC_OFFSET: {
-          offset -= op.argument;
+          case OpKind.DEC_OFFSET: {
+            offset -= op.argument;
 
-          break;
-        }
+            break;
+          }
 
-        case OpKind.INC_DATA: {
-          code.push(
-            Opcodes.get_local,
-            ...p,
+          case OpKind.INC_DATA: {
+            code.push(
+              Opcodes.get_local,
+              ...p,
 
-            Opcodes.i32_const,
-            ...signedLEB128(offset),
+              Opcodes.i32_const,
+              ...signedLEB128(offset),
 
-            Opcodes.i32_add,
+              Opcodes.i32_add,
 
-            Opcodes.tee_local,
-            ...p_offset,
+              Opcodes.tee_local,
+              ...p_offset,
 
-            Opcodes.get_local,
-            ...p_offset,
+              Opcodes.get_local,
+              ...p_offset,
 
-            Opcodes.i32_load8_u,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
+              Opcodes.i32_load8_u,
+              ...unsignedLEB128(0),
+              ...unsignedLEB128(0),
 
-            Opcodes.i32_const,
-            ...signedLEB128(op.argument),
+              Opcodes.i32_const,
+              ...signedLEB128(op.argument),
 
-            Opcodes.i32_add,
+              Opcodes.i32_add,
 
-            Opcodes.i32_store8,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-          );
+              Opcodes.i32_store8,
+              ...unsignedLEB128(0),
+              ...unsignedLEB128(0),
+            );
+            break;
+          }
 
-          break;
-        }
+          case OpKind.DEC_DATA: {
+            code.push(
+              Opcodes.get_local,
+              ...p,
 
-        case OpKind.DEC_DATA: {
-          code.push(
-            Opcodes.get_local,
-            ...p,
+              Opcodes.i32_const,
+              ...signedLEB128(offset),
 
-            Opcodes.i32_const,
-            ...signedLEB128(offset),
+              Opcodes.i32_add,
 
-            Opcodes.i32_add,
+              Opcodes.tee_local,
+              ...p_offset,
 
-            Opcodes.tee_local,
-            ...p_offset,
+              Opcodes.get_local,
+              ...p_offset,
 
-            Opcodes.get_local,
-            ...p_offset,
+              Opcodes.i32_load8_u,
+              ...unsignedLEB128(0),
+              ...unsignedLEB128(0),
 
-            Opcodes.i32_load8_u,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
+              Opcodes.i32_const,
+              ...signedLEB128(op.argument),
 
-            Opcodes.i32_const,
-            ...signedLEB128(op.argument),
+              Opcodes.i32_sub,
 
-            Opcodes.i32_sub,
+              Opcodes.i32_store8,
+              ...unsignedLEB128(0),
+              ...unsignedLEB128(0),
+            );
 
-            Opcodes.i32_store8,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-          );
+            break;
+          }
 
-          break;
-        }
+          case OpKind.READ_STDIN: {
 
-        case OpKind.READ_STDIN: {
-          // TO_DO add read char
-          // code.push(
-          //   encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${dataptr} + ${offset}] = ${inF}();\n`)
-          // );
+            break;
+          }
 
-          break;
-        }
+          case OpKind.WRITE_STDOUT: {
+            // TO_DO add loop for out
+            code.push(
+              Opcodes.get_local,
+              ...p,
 
-        case OpKind.WRITE_STDOUT: {
-          // if (op.argument < 2) {
-          //   code.push(
-          //     encode(`${outF}(${memoryName}[${dataptr} + ${offset}]);\n`)
-          //   ); 
-          // } else {
-          //   code.push(
-          //     encode(`for (let i = 0; i < ${op.argument}; i++) ${outF}(${memoryName}[${dataptr} + ${offset}]);\n`)
+              Opcodes.i32_const,
+              ...signedLEB128(offset),
+
+              Opcodes.i32_add,
+
+              Opcodes.i32_load8_u,
+              ...unsignedLEB128(0),
+              ...unsignedLEB128(0),
+
+              Opcodes.call,
+              ...unsignedLEB128(0),
+            );
+
+            break;
+          }
+
+          // case OpKind.LOOP_SET_TO_ZERO: {
+          //   coder.encode(
+          //     `${tabs}// set to zero loop\n`
           //   );
+          //   coder.encode(
+          //     `${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`
+          //   );
+
+          //   break;
           // }
 
-          // TO_DO add loop for out
-          code.push(
-            Opcodes.get_local,
-            ...p,
+          // case OpKind.MUL_INC_DATA: {
+          //   const loop_offset = offsetDataptr(dataptr, offset_move_start_stack[offset_move_start_stack.length - 1]);
 
-            Opcodes.i32_const,
-            ...signedLEB128(offset),
+          //   let arg = '';
+          //   let power = Math.log2(op.argument);
 
-            Opcodes.i32_add,
+          //   if (op.argument === 1) {
+          //     arg = `${memoryName}[${loop_offset}]`;
+          //   } else if (Number.isInteger(power)) {
+          //     arg = `${memoryName}[${loop_offset}] << ${power}`;
+          //   } else {
+          //     power = power | 0;
+          //     const mult = op.argument - (2 ** power);
+          //     const mult_str = mult === 1 ? '' : `* ${mult}`;
+          //     arg = `(${memoryName}[${loop_offset}] << ${power}) + ${memoryName}[${loop_offset}] ${mult_str}`;
+          //   }
 
-            Opcodes.i32_load8_u,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
+          //   arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
+          //   coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] += ${arg};\n`);
+          //   break;
+          // }
 
-            Opcodes.call,
-            ...unsignedLEB128(0),
-          );
+          // case OpKind.MUL_DEC_DATA: {
+          //   const loop_offset = offsetDataptr(dataptr, offset_move_start_stack[offset_move_start_stack.length - 1]);
+          //   let arg = op.argument === 1 ? `${memoryName}[${loop_offset}]` : `${op.argument} * ${memoryName}[${loop_offset}]`;
+          //   arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
+          //   coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${arg};\n`);
 
-          break;
+          //   break;
+          // }
+
+          // case OpKind.SET_DATA: {
+          //   coder.encode(
+          //     `${memoryName}[${offsetDataptr(dataptr, offset)}] = ${op.argument};\n`
+          //   );
+
+          //   break;
+          // }
+
+          // case OpKind.SEARCH_LOOP: {
+          //   coder.encode(
+          //     `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`
+          //   );
+          //   if (op.argument > 0) {
+          //     coder.encode(
+          //       `${dataptr} += ${op.argument};\n`
+          //     );
+          //   } else {
+          //     coder.encode(
+          //       `${dataptr} -= ${Math.abs(op.argument)};\n`
+          //     );
+          //   }
+          //   coder.encode(
+          //     `}\n`
+          //   );
+
+          //   break;
+          // }
         }
+      } else {
+        if (op.opkode === OpKind.LOOP_MOVE_DATA) {
+          // coder.encode(`${tabs}if (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`);
 
-        case OpKind.LOOP_SET_TO_ZERO: {
-          code.push(
-            Opcodes.get_local,
-            ...p,
+          offset_move_start_stack.push(offset);
 
-            Opcodes.i32_const,
-            ...signedLEB128(offset),
+          travers(op);
 
-            Opcodes.i32_add,
-
-            Opcodes.i32_const,
-            ...unsignedLEB128(0),
-
-            Opcodes.i32_store8,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-          );
-
-          break;
-        }
-
-        case OpKind.LOOP_MOVE_PTR: {
-          code.push(
-            Opcodes.block,
-            Valtype.void,
-            Opcodes.loop,
-            Valtype.void,
-
-            Opcodes.get_local,
-            ...p,
-
-            Opcodes.i32_const,
-            ...signedLEB128(offset),
-
-            Opcodes.i32_add,
-
-            Opcodes.tee_local,
-            ...p_offset,
-
-            Opcodes.i32_load8_u,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-
-            Opcodes.i32_eqz,
-
-            Opcodes.br_if,
-            ...unsignedLEB128(1),
-
-            Opcodes.get_local,
-            ...p,
-
-            Opcodes.i32_const,
-            ...signedLEB128(op.argument),
-
-            Opcodes.i32_add,
-
-            Opcodes.set_local,
-            ...p,
-
-            Opcodes.br,
-            ...unsignedLEB128(0),
-
-            Opcodes.end,
-            Opcodes.end,
-          );
-
-          break;
-        }
-
-        case OpKind.LOOP_MOVE_DATA: {
-          // TODO can result in invalid memory access
-          code.push(
-            // OK
-            Opcodes.get_local,
-            ...p,
-
-            Opcodes.i32_const,
-            ...signedLEB128(offset),
-
-            Opcodes.i32_add,
-
-            Opcodes.tee_local,
-            ...p_offset,
-            // OK
-
-
-            Opcodes.i32_load8_u,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-
-
-            Opcodes.i32_const,
-            ...unsignedLEB128(0),
-
-            Opcodes.i32_gt_u,
-
-            Opcodes.if,
-            Valtype.void,
-
-            Opcodes.get_local,
-            ...p_offset,
-
-            // stack :
-            // 0: | data + offset |
-
-            Opcodes.i32_const,
-            ...signedLEB128(op.argument),
-
-            Opcodes.i32_add,
-
-            // stack :
-            // 0: | data + offset + op.argument |
-
-            Opcodes.get_local,
-            ...p_offset,
-
-            Opcodes.i32_const,
-            ...signedLEB128(op.argument),
-
-            Opcodes.i32_add,
-
-            // stack :
-            // 0: | data + offset + op.argument |
-            // 1: | data + offset + op.argument |
-
-            Opcodes.i32_load8_u,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-
-            // stack :
-            // 0: | data + offset + op.argument |
-
-            Opcodes.get_local,
-            ...p_offset,
-
-            // stack :
-            // 0: | data + offset |
-            // 1: | data + offset + op.argument |
-
-            Opcodes.i32_load8_u,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-
-            // stack :
-            // 0: | data + offset + op.argument |
-
-            Opcodes.i32_add,
-
-            Opcodes.i32_store8,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-
-
-            // OK
-            // stack :
-
-            Opcodes.get_local,
-            ...p_offset,
-
-            // stack :
-            // 0: | data + offset |
-
-            Opcodes.i32_const,
-            ...signedLEB128(0),
-
-            Opcodes.i32_store8,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-
-            Opcodes.end,
-          );
-
-          break;
-        }
-
-        case OpKind.JUMP_IF_DATA_ZERO: {
-
+          offset_move_start_stack.pop();
+        } else {
           code.push(
             Opcodes.block,
             Valtype.void,
@@ -810,344 +1411,20 @@ function compileFromOpcodeToWasm(ops: Array<Opcode>): Uint8Array {
             ...unsignedLEB128(1),
           );
 
-          offset_stack.push(offset);
+          travers(op);
 
-          break;
-        }
-
-        case OpKind.JUMP_IF_DATA_NOT_ZERO: {
           code.push(
             Opcodes.br,
             ...unsignedLEB128(0),
             Opcodes.end,
             Opcodes.end,
           );
-
-
-          offset = offset_stack.pop();
-
-          break;
         }
-
-        case OpKind.RESET_DATA_RANGE: {
-          code.push(
-            Opcodes.get_local,
-            ...p,
-
-            Opcodes.i32_const,
-            ...signedLEB128(offset),
-
-            Opcodes.i32_add,
-
-            Opcodes.set_local,
-            ...p_offset,
-          );
-
-
-        for (let i = 1; i < op.argument + 1; i++) {
-            code.push(
-              Opcodes.get_local,
-              ...p_offset,
-
-              Opcodes.i32_const,
-              ...unsignedLEB128(i),
-
-              Opcodes.i32_add,
-
-              Opcodes.tee_local,
-              ...p_offset,
-
-              Opcodes.i32_const,
-              ...unsignedLEB128(0),
-
-              Opcodes.i32_store8,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-            );
-          }
-
-          break;
-        }
-
-        case OpKind.SET_DATA: {
-          code.push(
-            Opcodes.get_local,
-            ...p,
-
-            Opcodes.i32_const,
-            ...signedLEB128(offset),
-
-            Opcodes.i32_add,
-
-            Opcodes.i32_const,
-            ...unsignedLEB128(op.argument),
-
-            Opcodes.i32_store8,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-          );
-
-          break;
-        }
-
-        case OpKind.DATA_LOOP: {
-          loop_data_offset = offset;
-          loop_data_offsets.push(loop_data_offset);
-
-          code.push(
-            Opcodes.get_local,
-            ...p,
-
-            Opcodes.i32_const,
-            ...signedLEB128(offset),
-
-            Opcodes.i32_add,
-
-            Opcodes.i32_load8_u,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-
-            Opcodes.i32_const,
-            ...unsignedLEB128(0),
-
-            Opcodes.i32_gt_u,
-
-            Opcodes.if,
-            Valtype.void,
-          );
-
-          break;
-        }
-
-        case OpKind.DATA_LOOP_END: {
-          code.push(
-            Opcodes.get_local,
-            ...p,
-
-            Opcodes.i32_const,
-            ...signedLEB128(loop_data_offset),
-
-            Opcodes.i32_add,
-
-            Opcodes.i32_const,
-            ...signedLEB128(0),
-
-            Opcodes.i32_store8,
-            ...unsignedLEB128(0),
-            ...unsignedLEB128(0),
-
-            Opcodes.end,
-          );
-
-          offset = loop_data_offsets.pop();
-          loop_data_offset = loop_data_offsets[loop_data_offsets.length - 1];
-
-          break;
-        }
-
-        case OpKind.DATA_LOOP_ADD: {
-          if (op.argument === 1) {
-            code.push(
-              Opcodes.get_local,
-              ...p,
-
-              Opcodes.i32_const,
-              ...signedLEB128(offset),
-
-              Opcodes.i32_add,
-
-              Opcodes.tee_local,
-              ...p_offset,
-
-              Opcodes.get_local,
-              ...p_offset,
-
-              Opcodes.i32_load8_u,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-
-              Opcodes.get_local,
-              ...p,
-
-              Opcodes.i32_const,
-              ...signedLEB128(loop_data_offset),
-
-              Opcodes.i32_add,
-
-              Opcodes.i32_load8_u,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-
-              Opcodes.i32_add,
-
-              Opcodes.i32_store8,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-            );
-          } else {
-            code.push(
-              Opcodes.get_local,
-              ...p,
-
-              Opcodes.i32_const,
-              ...signedLEB128(offset),
-
-              Opcodes.i32_add,
-
-              Opcodes.tee_local,
-              ...p_offset,
-
-              Opcodes.get_local,
-              ...p_offset,
-
-              Opcodes.i32_load8_u,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-
-              Opcodes.get_local,
-              ...p,
-
-              Opcodes.i32_const,
-              ...signedLEB128(loop_data_offset),
-
-              Opcodes.i32_add,
-
-              Opcodes.i32_load8_u,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-
-              Opcodes.i32_const,
-              ...signedLEB128(op.argument),
-
-              Opcodes.i32_mul,
-
-              Opcodes.i32_add,
-
-              Opcodes.i32_store8,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-            );
-          }
-
-          break;
-        }
-
-        case OpKind.DATA_LOOP_SUB: {
-          if (op.argument === 1) {
-            code.push(
-              Opcodes.get_local,
-              ...p,
-
-              Opcodes.i32_const,
-              ...signedLEB128(offset),
-
-              Opcodes.i32_add,
-
-              Opcodes.tee_local,
-              ...p_offset,
-
-              Opcodes.get_local,
-              ...p_offset,
-
-              Opcodes.i32_load8_u,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-
-              Opcodes.get_local,
-              ...p,
-
-              Opcodes.i32_const,
-              ...signedLEB128(loop_data_offset),
-
-              Opcodes.i32_add,
-
-              Opcodes.i32_load8_u,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-
-              Opcodes.i32_sub,
-
-              Opcodes.i32_store8,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-            );
-          } else {
-            code.push(
-              Opcodes.get_local,
-              ...p,
-
-              Opcodes.i32_const,
-              ...signedLEB128(offset),
-
-              Opcodes.i32_add,
-
-              Opcodes.tee_local,
-              ...p_offset,
-
-              Opcodes.get_local,
-              ...p_offset,
-
-              Opcodes.i32_load8_u,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-
-              Opcodes.get_local,
-              ...p,
-
-              Opcodes.i32_const,
-              ...signedLEB128(loop_data_offset),
-
-              Opcodes.i32_add,
-
-              Opcodes.i32_load8_u,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-
-              Opcodes.i32_const,
-              ...signedLEB128(op.argument),
-
-              Opcodes.i32_mul,
-
-              Opcodes.i32_sub,
-
-              Opcodes.i32_store8,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
-            );
-          }
-
-          break;
-        }
-
-        case OpKind.STORE_DATAPTR: {
-          code.push(
-            Opcodes.get_local,
-            ...p,
-
-            Opcodes.set_local,
-            ...p_cached,
-          );
-
-          break;
-        }
-
-        case OpKind.GET_DATAPTR: {
-          code.push(
-            Opcodes.get_local,
-            ...p_cached,
-
-            Opcodes.set_local,
-            ...p,
-          );
-
-          break;
-        }
-
-        default: { console.warn(`bad char ' ${opKindToChar(op.kind)} ' at pc=${pc}`); }
       }
-  
-      pc++;
-    }
+    });
+  }
+
+  travers(ops);
 
   return emitter(code);
 }
@@ -1176,7 +1453,8 @@ function compileFromWatToWasm(compileWatToWasm: (s: string) => Uint8Array, ops: 
   return getWasmModule(wasm, inF, outF);
 }
 
-function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
+function compile_prod(ops: Ast, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
+  // function compile_prod(ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
   const wasm = compileFromOpcodeToWasm(ops);
 
   return getWasmModule(wasm, inF, outF);
