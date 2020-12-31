@@ -71,14 +71,14 @@ self.addEventListener('message', (e) => {
         }
         case BrainfuckMode.CompileJavaScript: {
           // const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-          const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
           modulePromise = compileJS(ops, inF, outF);
           console.log(ops);
           break;
         }
         case BrainfuckMode.CompileWebAssembly: {
           // const ops = translate_program(tokens, OptimizationKind.C0);
-          const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
           modulePromise = compileWasm(ops, inF, outF);
           console.log(ops);
           break;
@@ -124,12 +124,12 @@ self.addEventListener('message', (e) => {
 
     switch (mode) {
       case BrainfuckMode.CompileJavaScript: {
-        const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
         compiled = compileToJS(ops, inF, outF);
         break;
       }
       case BrainfuckMode.CompileWebAssembly: {
-        const ops = translate_program(tokens, OptimizationKind.C2);
+        const ops = translate_program(tokens, OptimizationKind.C1);
         compiled = compileToWat(ops);
         break;
       }

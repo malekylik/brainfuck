@@ -1307,83 +1307,314 @@ function compileFromOpcodeToWasm(ops: Ast) {
             break;
           }
 
-          // case OpKind.LOOP_SET_TO_ZERO: {
-          //   coder.encode(
-          //     `${tabs}// set to zero loop\n`
-          //   );
-          //   coder.encode(
-          //     `${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`
-          //   );
+          case OpKind.LOOP_SET_TO_ZERO: {
+            code.push(
+              Opcodes.get_local,
+              ...p,
 
-          //   break;
-          // }
+              Opcodes.i32_const,
+              ...signedLEB128(offset),
 
-          // case OpKind.MUL_INC_DATA: {
-          //   const loop_offset = offsetDataptr(dataptr, offset_move_start_stack[offset_move_start_stack.length - 1]);
+              Opcodes.i32_add,
 
-          //   let arg = '';
-          //   let power = Math.log2(op.argument);
+              Opcodes.i32_const,
+              ...unsignedLEB128(0),
 
-          //   if (op.argument === 1) {
-          //     arg = `${memoryName}[${loop_offset}]`;
-          //   } else if (Number.isInteger(power)) {
-          //     arg = `${memoryName}[${loop_offset}] << ${power}`;
-          //   } else {
-          //     power = power | 0;
-          //     const mult = op.argument - (2 ** power);
-          //     const mult_str = mult === 1 ? '' : `* ${mult}`;
-          //     arg = `(${memoryName}[${loop_offset}] << ${power}) + ${memoryName}[${loop_offset}] ${mult_str}`;
-          //   }
+              Opcodes.i32_store8,
+              ...unsignedLEB128(0),
+              ...unsignedLEB128(0),
+            );
 
-          //   arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-          //   coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] += ${arg};\n`);
-          //   break;
-          // }
+            break;
+          }
 
-          // case OpKind.MUL_DEC_DATA: {
-          //   const loop_offset = offsetDataptr(dataptr, offset_move_start_stack[offset_move_start_stack.length - 1]);
-          //   let arg = op.argument === 1 ? `${memoryName}[${loop_offset}]` : `${op.argument} * ${memoryName}[${loop_offset}]`;
-          //   arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-          //   coder.encode(`${tabs}${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${arg};\n`);
+          case OpKind.MUL_INC_DATA: {
+            if (op.argument === 1) {
+              code.push(
+                Opcodes.get_local,
+                ...p,
 
-          //   break;
-          // }
+                Opcodes.i32_const,
+                ...signedLEB128(offset),
 
-          // case OpKind.SET_DATA: {
-          //   coder.encode(
-          //     `${memoryName}[${offsetDataptr(dataptr, offset)}] = ${op.argument};\n`
-          //   );
+                Opcodes.i32_add,
 
-          //   break;
-          // }
+                Opcodes.tee_local,
+                ...p_offset,
 
-          // case OpKind.SEARCH_LOOP: {
-          //   coder.encode(
-          //     `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`
-          //   );
-          //   if (op.argument > 0) {
-          //     coder.encode(
-          //       `${dataptr} += ${op.argument};\n`
-          //     );
-          //   } else {
-          //     coder.encode(
-          //       `${dataptr} -= ${Math.abs(op.argument)};\n`
-          //     );
-          //   }
-          //   coder.encode(
-          //     `}\n`
-          //   );
+                Opcodes.get_local,
+                ...p_offset,
 
-          //   break;
-          // }
+                Opcodes.i32_load8_u,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+
+                Opcodes.get_local,
+                ...p,
+
+                Opcodes.i32_const,
+                ...signedLEB128(offset_move_start_stack[offset_move_start_stack.length - 1]),
+
+                Opcodes.i32_add,
+
+                Opcodes.i32_load8_u,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+
+                Opcodes.i32_add,
+
+                Opcodes.i32_store8,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+              );
+            } else {
+              code.push(
+                Opcodes.get_local,
+                ...p,
+
+                Opcodes.i32_const,
+                ...signedLEB128(offset),
+
+                Opcodes.i32_add,
+
+                Opcodes.tee_local,
+                ...p_offset,
+
+                Opcodes.get_local,
+                ...p_offset,
+
+                Opcodes.i32_load8_u,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+
+                Opcodes.get_local,
+                ...p,
+
+                Opcodes.i32_const,
+                ...signedLEB128(offset_move_start_stack[offset_move_start_stack.length - 1]),
+
+                Opcodes.i32_add,
+
+                Opcodes.i32_load8_u,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+
+                Opcodes.i32_const,
+                ...signedLEB128(op.argument),
+
+                Opcodes.i32_mul,
+
+                Opcodes.i32_add,
+
+                Opcodes.i32_store8,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+              );
+            }
+
+            break;
+          }
+
+          case OpKind.MUL_DEC_DATA: {
+            if (op.argument === 1) {
+              code.push(
+                Opcodes.get_local,
+                ...p,
+
+                Opcodes.i32_const,
+                ...signedLEB128(offset),
+
+                Opcodes.i32_add,
+
+                Opcodes.tee_local,
+                ...p_offset,
+
+                Opcodes.get_local,
+                ...p_offset,
+
+                Opcodes.i32_load8_u,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+
+                Opcodes.get_local,
+                ...p,
+
+                Opcodes.i32_const,
+                ...signedLEB128(offset_move_start_stack[offset_move_start_stack.length - 1]),
+
+                Opcodes.i32_add,
+
+                Opcodes.i32_load8_u,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+
+                Opcodes.i32_sub,
+
+                Opcodes.i32_store8,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+              );
+            } else {
+              code.push(
+                Opcodes.get_local,
+                ...p,
+
+                Opcodes.i32_const,
+                ...signedLEB128(offset),
+
+                Opcodes.i32_add,
+
+                Opcodes.tee_local,
+                ...p_offset,
+
+                Opcodes.get_local,
+                ...p_offset,
+
+                Opcodes.i32_load8_u,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+
+                Opcodes.get_local,
+                ...p,
+
+                Opcodes.i32_const,
+                ...signedLEB128(offset_move_start_stack[offset_move_start_stack.length - 1]),
+
+                Opcodes.i32_add,
+
+                Opcodes.i32_load8_u,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+
+                Opcodes.i32_const,
+                ...signedLEB128(op.argument),
+
+                Opcodes.i32_mul,
+
+                Opcodes.i32_sub,
+
+                Opcodes.i32_store8,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+              );
+            }
+
+            break;
+          }
+
+          case OpKind.SET_DATA: {
+            code.push(
+              Opcodes.get_local,
+              ...p,
+
+              Opcodes.i32_const,
+              ...signedLEB128(offset),
+
+              Opcodes.i32_add,
+
+              Opcodes.i32_const,
+              ...unsignedLEB128(op.argument),
+
+              Opcodes.i32_store8,
+              ...unsignedLEB128(0),
+              ...unsignedLEB128(0),
+            );
+
+            break;
+          }
+
+          case OpKind.SEARCH_LOOP: {
+            code.push(
+              Opcodes.block,
+              Valtype.void,
+              Opcodes.loop,
+              Valtype.void,
+
+              Opcodes.get_local,
+              ...p,
+
+              Opcodes.i32_const,
+              ...signedLEB128(offset),
+
+              Opcodes.i32_add,
+
+              Opcodes.i32_load8_u,
+              ...unsignedLEB128(0),
+              ...unsignedLEB128(0),
+
+              Opcodes.i32_eqz,
+
+              Opcodes.br_if,
+              ...unsignedLEB128(1),
+
+              // loop body
+
+              Opcodes.get_local,
+              ...p,
+
+              Opcodes.i32_const,
+              ...signedLEB128(Math.abs(op.argument)),
+
+              op.argument > 0 ? Opcodes.i32_add : Opcodes.i32_sub,
+
+              Opcodes.set_local,
+              ...p,
+
+              // loop end
+              Opcodes.br,
+              ...unsignedLEB128(0),
+              Opcodes.end,
+              Opcodes.end,
+            );
+
+            break;
+          }
         }
       } else {
         if (op.opkode === OpKind.LOOP_MOVE_DATA) {
-          // coder.encode(`${tabs}if (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`);
+          code.push(
+            Opcodes.get_local,
+            ...p,
 
+            Opcodes.i32_const,
+            ...signedLEB128(offset),
+
+            Opcodes.i32_add,
+
+            Opcodes.i32_load8_u,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+
+            Opcodes.i32_const,
+            ...unsignedLEB128(0),
+
+            Opcodes.i32_gt_u,
+
+            Opcodes.if,
+            Valtype.void,
+          );
           offset_move_start_stack.push(offset);
 
           travers(op);
+
+          code.push(
+            Opcodes.get_local,
+            ...p,
+
+            Opcodes.i32_const,
+            ...signedLEB128(loop_data_offset),
+
+            Opcodes.i32_add,
+
+            Opcodes.i32_const,
+            ...signedLEB128(0),
+
+            Opcodes.i32_store8,
+            ...unsignedLEB128(0),
+            ...unsignedLEB128(0),
+
+            Opcodes.end,
+          );
 
           offset_move_start_stack.pop();
         } else {
