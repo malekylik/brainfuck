@@ -5,7 +5,7 @@ import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
 import { compile as compileJS, compileToJS } from 'compiler/js/compiler';
-import { compile as compileWasm, compileFromWatToWasm, compileToWat } from 'compiler/web-assembler/compiler';
+import { compile as compileWasm, compileToWat } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
 import { BrainfuckMode } from 'consts/mode';
@@ -70,17 +70,13 @@ self.addEventListener('message', (e) => {
           break;
         }
         case BrainfuckMode.CompileJavaScript: {
-          // const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-          const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
           modulePromise = compileJS(ops, inF, outF);
-          console.log(ops);
           break;
         }
         case BrainfuckMode.CompileWebAssembly: {
-          // const ops = translate_program(tokens, OptimizationKind.C0);
-          const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
           modulePromise = compileWasm(ops, inF, outF);
-          console.log(ops);
           break;
         }
         // case BrainfuckMode.CompileWebAssembly: compile = (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF); break;
@@ -124,12 +120,12 @@ self.addEventListener('message', (e) => {
 
     switch (mode) {
       case BrainfuckMode.CompileJavaScript: {
-        const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
         compiled = compileToJS(ops, inF, outF);
         break;
       }
       case BrainfuckMode.CompileWebAssembly: {
-        const ops = translate_program(tokens, OptimizationKind.C1);
+        const ops = translate_program(tokens, OptimizationKind.C2);
         compiled = compileToWat(ops);
         break;
       }

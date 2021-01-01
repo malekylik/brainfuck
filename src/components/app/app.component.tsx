@@ -39,6 +39,7 @@ export default function App() {
 
   function changeBFSourceHandler(e: React.ChangeEvent<HTMLTextAreaElement>) {
     changeBFSource(e.target.value);
+    setCompiledCode('');
   }
 
   function changeOutputHandler(e: React.ChangeEvent<HTMLTextAreaElement>) {

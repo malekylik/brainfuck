@@ -185,9 +185,9 @@ function optimize_c2(ops: Ast): Ast {
       ast.body.push({
         type: ParseSymbol.ExpressionStatement,
         loc: { start: 0, end: 0, line: 0 },
-        operator: '>',
-        argument: ast.search_by,
-        opkode: OpKind.INC_PTR,
+        operator: ast.search_by > 0 ? '>' : '<',
+        argument: Math.abs(ast.search_by),
+        opkode: ast.search_by > 0 ? OpKind.INC_PTR : OpKind.DEC_PTR,
       });
     }
   }

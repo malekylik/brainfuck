@@ -95,7 +95,7 @@ function optimize_loop_move_data(ops: Array<Opcode>, loop_start: number, loop_en
 const c1_loop_optimizers: Array<optimize_loop_function> = [
   optimize_loop_set_to_zero,
   optimize_loop_move_ptr,
-  optimize_loop_move_data,
+  // optimize_loop_move_data,
 ];
 
 function optimize_c1(ops: Array<Opcode>): Array<Opcode> {
@@ -140,29 +140,29 @@ function optimize_c1(ops: Array<Opcode>): Array<Opcode> {
 
   // optimize_range_update
   {
-    let pc = 0;
-    const open_bracket_stack = [];
+    // let pc = 0;
+    // const open_bracket_stack = [];
 
-    while (pc < ops.length) {
-      const instruction = ops[pc];
+    // while (pc < ops.length) {
+    //   const instruction = ops[pc];
 
-      if (instruction.kind === OpKind.DEC_PTR) {
-        open_bracket_stack.push(pc);
+    //   if (instruction.kind === OpKind.DEC_PTR) {
+    //     open_bracket_stack.push(pc);
 
-        // boost chrome performance from 105s 103ms to 18s 624ms
-        // todo: check the reason
-        const optimized_loop = optimize_range_update(ops, pc - 1);
+    //     // boost chrome performance from 105s 103ms to 18s 624ms
+    //     // todo: check the reason
+    //     const optimized_loop = optimize_range_update(ops, pc - 1);
 
-        if (optimized_loop.length !== 0 && optimized_loop[0].argument === instruction.argument) {
-          ops = update_ops(ops, optimized_loop, pc - (optimized_loop[0].argument * 2), pc);
-          continue;
-        }
+    //     if (optimized_loop.length !== 0 && optimized_loop[0].argument === instruction.argument) {
+    //       ops = update_ops(ops, optimized_loop, pc - (optimized_loop[0].argument * 2), pc);
+    //       continue;
+    //     }
 
-        pc++;
-      } else {
-        pc++;
-      }
-    }
+    //     pc++;
+    //   } else {
+    //     pc++;
+    //   }
+    // }
   }
 
   // set_data
@@ -368,65 +368,65 @@ function optimize_c2(ops: Array<Opcode>): Array<Opcode> {
 
   // optimize loop scan
   {
-    let pc = 0;
-    let loop_depth = 0;
+    // let pc = 0;
+    // let loop_depth = 0;
 
-    let first_loop_scan = null;
-    let second_loop_scan = null;
+    // let first_loop_scan = null;
+    // let second_loop_scan = null;
 
-    while (pc < ops.length) {
-      const op = ops[pc];
+    // while (pc < ops.length) {
+    //   const op = ops[pc];
 
-      if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
-        loop_depth += 1;
+    //   if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
+    //     loop_depth += 1;
 
-        first_loop_scan = null;
-        second_loop_scan = null;
-      } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
-        loop_depth -= 1;
+    //     first_loop_scan = null;
+    //     second_loop_scan = null;
+    //   } else if (op.kind === OpKind.JUMP_IF_DATA_NOT_ZERO) {
+    //     loop_depth -= 1;
 
-        first_loop_scan = null;
-        second_loop_scan = null;
-      } else if (op.kind === OpKind.LOOP_MOVE_PTR) {
-        if (first_loop_scan === null) {
-          first_loop_scan = {
-            opcode_index: pc,
-            loop_depth,
-          };
-        } else if (second_loop_scan === null) {
-          second_loop_scan = {
-            opcode_index: pc,
-            loop_depth,
-          };
+    //     first_loop_scan = null;
+    //     second_loop_scan = null;
+    //   } else if (op.kind === OpKind.LOOP_MOVE_PTR) {
+    //     if (first_loop_scan === null) {
+    //       first_loop_scan = {
+    //         opcode_index: pc,
+    //         loop_depth,
+    //       };
+    //     } else if (second_loop_scan === null) {
+    //       second_loop_scan = {
+    //         opcode_index: pc,
+    //         loop_depth,
+    //       };
 
 
-          const ops_betwen = ops.slice(first_loop_scan.opcode_index + 1, second_loop_scan.opcode_index);
-          const isOffsetZero =
-            ops_betwen
-              .filter(op => op.kind === OpKind.INC_PTR || op.kind === OpKind.DEC_PTR)
-              .reduce((prev, op) => op.kind === OpKind.INC_PTR ? prev + op.argument : prev - op.argument, 0) === 0;
-          const total_offset =
-            ops_betwen
-              .filter(op => op.kind === OpKind.INC_OFFSET || op.kind === OpKind.DEC_OFFSET)
-              .reduce((prev, op) => op.kind === OpKind.INC_OFFSET ? prev + op.argument : prev - op.argument, 0);
-          const isLoopsComplementary = (ops[first_loop_scan.opcode_index].argument + ops[second_loop_scan.opcode_index].argument) === 0;
+    //       const ops_betwen = ops.slice(first_loop_scan.opcode_index + 1, second_loop_scan.opcode_index);
+    //       const isOffsetZero =
+    //         ops_betwen
+    //           .filter(op => op.kind === OpKind.INC_PTR || op.kind === OpKind.DEC_PTR)
+    //           .reduce((prev, op) => op.kind === OpKind.INC_PTR ? prev + op.argument : prev - op.argument, 0) === 0;
+    //       const total_offset =
+    //         ops_betwen
+    //           .filter(op => op.kind === OpKind.INC_OFFSET || op.kind === OpKind.DEC_OFFSET)
+    //           .reduce((prev, op) => op.kind === OpKind.INC_OFFSET ? prev + op.argument : prev - op.argument, 0);
+    //       const isLoopsComplementary = (ops[first_loop_scan.opcode_index].argument + ops[second_loop_scan.opcode_index].argument) === 0;
 
-          if (isOffsetZero && isLoopsComplementary && total_offset === ops[second_loop_scan.opcode_index].argument) {
-            // loop_end - 1 - we want remove end of loop
-            ops = update_ops(ops, [createOpcode(OpKind.STORE_DATAPTR, 0, { start: 0, end: 0, line: 0 })], first_loop_scan.opcode_index, first_loop_scan.opcode_index - 1);
+    //       if (isOffsetZero && isLoopsComplementary && total_offset === ops[second_loop_scan.opcode_index].argument) {
+    //         // loop_end - 1 - we want remove end of loop
+    //         ops = update_ops(ops, [createOpcode(OpKind.STORE_DATAPTR, 0, { start: 0, end: 0, line: 0 })], first_loop_scan.opcode_index, first_loop_scan.opcode_index - 1);
 
-            second_loop_scan.opcode_index++;
+    //         second_loop_scan.opcode_index++;
 
-            // loop_end - 1 - we want remove end of loop
-            ops = update_ops(ops, [createOpcode(OpKind.GET_DATAPTR, 0, { start: 0, end: 0, line: 0 })], second_loop_scan.opcode_index, second_loop_scan.opcode_index - 1);
+    //         // loop_end - 1 - we want remove end of loop
+    //         ops = update_ops(ops, [createOpcode(OpKind.GET_DATAPTR, 0, { start: 0, end: 0, line: 0 })], second_loop_scan.opcode_index, second_loop_scan.opcode_index - 1);
 
-            pc += 2;
-          }
+    //         pc += 2;
+    //       }
 
-          first_loop_scan = null;
-          second_loop_scan = null;
-        }
-      }
+    //       first_loop_scan = null;
+    //       second_loop_scan = null;
+    //     }
+    //   }
       
 
       // if (op.kind === OpKind.JUMP_IF_DATA_ZERO) {
@@ -511,8 +511,8 @@ function optimize_c2(ops: Array<Opcode>): Array<Opcode> {
       //   }
       // }
 
-      pc++;
-    }
+      // pc++;
+    // }
   }
 
   return ops;
