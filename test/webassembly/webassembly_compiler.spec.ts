@@ -1,7 +1,7 @@
 import { translate_program_to_ast } from 'ir/parser';
 import { parse_from_stream } from 'utils/parser';
 import { OptimizationKind } from 'ir/optimization-kinds';
-import { compile } from 'compiler/js/compiler';
+import { compile } from 'compiler/web-assembler/compiler';
 import { ioin, getIOOut } from '../mock';
 import {
   mandelbrot_answer, yapi_answer,
@@ -16,7 +16,7 @@ import {
   oobrain_src,
 } from '../data/bf_programs';
 
-describe('JS compiler', () => {
+describe('WebAssembly compiler', () => {
   describe('C2', () => {
     it('triangle', async () => {
       const fStr = getIOOut();
@@ -98,7 +98,7 @@ describe('JS compiler', () => {
     it('mandelbrot', async () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(mandelbrot_src);
-      const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
       const modulePromise = await compile(ops, ioin, fStr);
 
       modulePromise.module.run();
