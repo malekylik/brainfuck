@@ -439,10 +439,11 @@ function compileFromOpcodeToWasm(ops: Ast) {
   let offset = 0;
   const p = unsignedLEB128(0);
   const p_offset = unsignedLEB128(1);
+  const loop_local = unsignedLEB128(2);
 
   code.push(
     ...unsignedLEB128(1),
-    ...unsignedLEB128(2), // 3 of int32
+    ...unsignedLEB128(3), // 3 of int32
     Valtype.i32,
   );
 
@@ -567,23 +568,81 @@ function compileFromOpcodeToWasm(ops: Ast) {
           }
 
           case OpKind.WRITE_STDOUT: {
-            // TO_DO add loop for out
-            code.push(
-              Opcodes.get_local,
-              ...p,
+            if (op.argument > 1) {
+              code.push(
+                Opcodes.i32_const,
+                ...unsignedLEB128(op.argument),
 
-              Opcodes.i32_const,
-              ...signedLEB128(offset),
+                Opcodes.set_local,
+                ...loop_local,
 
-              Opcodes.i32_add,
+                Opcodes.block,
+                Valtype.void,
+                Opcodes.loop,
+                Valtype.void,
 
-              Opcodes.i32_load8_u,
-              ...unsignedLEB128(0),
-              ...unsignedLEB128(0),
+                Opcodes.get_local,
+                ...loop_local,
 
-              Opcodes.call,
-              ...unsignedLEB128(0),
-            );
+                Opcodes.i32_eqz,
+
+                Opcodes.br_if,
+                ...unsignedLEB128(1),
+
+                // loop update
+                Opcodes.get_local,
+                ...loop_local,
+
+                Opcodes.i32_const,
+                ...unsignedLEB128(1),
+
+                Opcodes.i32_sub,
+
+                Opcodes.set_local,
+                ...loop_local,
+                // loop end update
+
+                // loop body
+                Opcodes.get_local,
+                ...p,
+
+                Opcodes.i32_const,
+                ...signedLEB128(offset),
+
+                Opcodes.i32_add,
+
+                Opcodes.i32_load8_u,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+
+                Opcodes.call,
+                ...unsignedLEB128(0),
+                // loop end body
+
+                Opcodes.br,
+                ...unsignedLEB128(0),
+                Opcodes.end,
+                Opcodes.end,
+              );
+            } else {
+              // TO_DO add loop for out
+              code.push(
+                Opcodes.get_local,
+                ...p,
+
+                Opcodes.i32_const,
+                ...signedLEB128(offset),
+
+                Opcodes.i32_add,
+
+                Opcodes.i32_load8_u,
+                ...unsignedLEB128(0),
+                ...unsignedLEB128(0),
+
+                Opcodes.call,
+                ...unsignedLEB128(0),
+              );
+            }
 
             break;
           }
