@@ -75,7 +75,8 @@ self.addEventListener('message', (e) => {
           break;
         }
         case BrainfuckMode.CompileWebAssembly: {
-          const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+          console.log(ops);
           modulePromise = compileWasm(ops, inF, outF);
           break;
         }
@@ -103,6 +104,23 @@ self.addEventListener('message', (e) => {
       time.runTime = end - now;
 
       self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
+    }).catch(e => {
+      stringToSend = '';
+
+      const end = performance.now();
+
+      console.log(`end at ${end}`);
+
+      time.runTime = end - now;
+
+      self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
+
+      console.log('name', e.name);
+      console.log('message', e.message);
+      console.log('lineNumber', e.lineNumber);
+      console.log('columnNumber', e.columnNumber);
+      console.log('stack', e.stack);
+      console.log('proto', Object.getPrototypeOf(e));
     });
   }
 
@@ -120,7 +138,7 @@ self.addEventListener('message', (e) => {
 
     switch (mode) {
       case BrainfuckMode.CompileJavaScript: {
-        const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
         compiled = compileToJS(ops, inF, outF);
         break;
       }

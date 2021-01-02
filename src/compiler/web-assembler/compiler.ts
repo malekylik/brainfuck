@@ -457,7 +457,7 @@ function compileFromOpcodeToWasm(ops: Ast) {
               ...p,
 
               Opcodes.i32_const,
-              ...unsignedLEB128(op.argument),
+              ...signedLEB128(op.argument),
 
               Opcodes.i32_add,
 
@@ -474,7 +474,7 @@ function compileFromOpcodeToWasm(ops: Ast) {
               ...p,
 
               Opcodes.i32_const,
-              ...unsignedLEB128(op.argument),
+              ...signedLEB128(op.argument),
 
               Opcodes.i32_sub,
 
