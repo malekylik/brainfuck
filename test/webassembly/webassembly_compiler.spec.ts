@@ -17,6 +17,186 @@ import {
 } from '../data/bf_programs';
 
 describe('WebAssembly compiler', () => {
+  describe('C0', () => {
+    it('triangle', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(trianlge_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(trinagle_answer);
+    });
+
+    it('oobrain', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(oobrain_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(oobrain_answer);
+    });
+
+    it('pi', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(pi_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(pi_answer);
+    });
+
+    it('char', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(char_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(char_answer);
+    });
+
+    it('beer', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(beer_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(beer_answer);
+    });
+
+    it('hellom', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(hellom_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(hellom_answer);
+    });
+
+    it('yapi', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(yapi_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(yapi_answer);
+    });
+
+    it('mandelbrot', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(mandelbrot_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(mandelbrot_answer);
+    });
+  });
+
+  describe('C1', () => {
+    it('triangle', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(trianlge_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(trinagle_answer);
+    });
+
+    it('oobrain', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(oobrain_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(oobrain_answer);
+    });
+
+    it('pi', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(pi_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(pi_answer);
+    });
+
+    it('char', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(char_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(char_answer);
+    });
+
+    it('beer', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(beer_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(beer_answer);
+    });
+
+    it('hellom', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(hellom_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(hellom_answer);
+    });
+
+    it('yapi', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(yapi_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(yapi_answer);
+    });
+
+    it('mandelbrot', async () => {
+      const fStr = getIOOut();
+      const tokens = parse_from_stream(mandelbrot_src);
+      const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+      const modulePromise = await compile(ops, ioin, fStr);
+
+      modulePromise.module.run();
+
+      expect(fStr.str).toBe(mandelbrot_answer);
+    });
+  });
+
   describe('C2', () => {
     it('triangle', async () => {
       const fStr = getIOOut();
@@ -105,5 +285,5 @@ describe('WebAssembly compiler', () => {
 
       expect(fStr.str).toBe(mandelbrot_answer);
     });
-  })
+  });
 });
