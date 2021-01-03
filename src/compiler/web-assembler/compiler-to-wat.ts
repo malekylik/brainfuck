@@ -592,22 +592,14 @@ export function compileToWat(ops: Ast): string {
           }
 
           case OpKind.LOOP_SET_TO_ZERO: {
-            // code.push(
-            //   Opcodes.get_local,
-            //   ...p,
-
-            //   Opcodes.i32_const,
-            //   ...signedLEB128(offset),
-
-            //   Opcodes.i32_add,
-
-            //   Opcodes.i32_const,
-            //   ...unsignedLEB128(0),
-
-            //   Opcodes.i32_store8,
-            //   ...unsignedLEB128(0),
-            //   ...unsignedLEB128(0),
-            // );
+            // TODO: check store
+            coder.encode(
+              `local.get $p\n` +
+              `i32.const ${offset}\n` +
+              `i32.add\n` +
+              `i32.const 0\n` +
+              `i32.store8\n`
+            );
 
             break;
           }
@@ -787,27 +779,36 @@ export function compileToWat(ops: Ast): string {
           }
 
           case OpKind.SET_DATA: {
-            // code.push(
-            //   Opcodes.get_local,
-            //   ...p,
-
-            //   Opcodes.i32_const,
-            //   ...signedLEB128(offset),
-
-            //   Opcodes.i32_add,
-
-            //   Opcodes.i32_const,
-            //   ...unsignedLEB128(op.argument),
-
-            //   Opcodes.i32_store8,
-            //   ...unsignedLEB128(0),
-            //   ...unsignedLEB128(0),
-            // );
+            coder.encode(
+              `local.get $p\n` +
+              `i32.const ${offset}\n` +
+              `i32.add\n` +
+              `i32.const ${op.argument}\n` +
+              `i32.store8\n`
+            );
 
             break;
           }
 
           case OpKind.SEARCH_LOOP: {
+            coder.encode(
+              `block\n` +
+              `loop\n` +
+              `local.get $p\n` +
+              `i32.const ${offset}\n` +
+              `i32.add\n` +
+              `i32.load8_u\n` +
+              `i32.eqz\n` +
+              `br_if 1\n` +
+              `local.get $p\n` +
+              `i32.const ${Math.abs(op.argument)}\n` +
+              (op.argument > 0 ? `i32.add\n` : `i32.sub\n`) +
+              `local.set $p\n` +
+              `br 0\n` +
+              `end\n` +
+              `end\n`
+            );
+
             // code.push(
             //   Opcodes.block,
             //   Valtype.void,

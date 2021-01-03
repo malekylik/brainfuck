@@ -75,13 +75,12 @@ self.addEventListener('message', (e) => {
           break;
         }
         case BrainfuckMode.CompileWebAssembly: {
-          const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
           console.log(ops);
           // modulePromise = compileWasm(ops, inF, outF);
           modulePromise = compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF);
           break;
         }
-        // case BrainfuckMode.CompileWebAssembly: compile = (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF); break;
       }
     }
 
