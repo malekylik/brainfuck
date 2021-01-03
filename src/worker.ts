@@ -5,7 +5,7 @@ import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
 import { compile as compileJS, compileToJS } from 'compiler/js/compiler';
-import { compile as compileWasm, compileToWat } from 'compiler/web-assembler/compiler';
+import { compile as compileWasm, compileToWat, compileFromWatToWasm } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
 import { BrainfuckMode } from 'consts/mode';
@@ -77,7 +77,8 @@ self.addEventListener('message', (e) => {
         case BrainfuckMode.CompileWebAssembly: {
           const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
           console.log(ops);
-          modulePromise = compileWasm(ops, inF, outF);
+          // modulePromise = compileWasm(ops, inF, outF);
+          modulePromise = compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF);
           break;
         }
         // case BrainfuckMode.CompileWebAssembly: compile = (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF); break;
@@ -92,8 +93,10 @@ self.addEventListener('message', (e) => {
 
       module.run();
 
-      self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
-      stringToSend = '';
+      if (stringToSend !== '') {
+        self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
+        stringToSend = '';
+      }
 
       console.log('memory', memory);
 
@@ -104,7 +107,7 @@ self.addEventListener('message', (e) => {
       time.runTime = end - now;
 
       self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
-    }).catch(e => {
+    }).catch(() => {
       stringToSend = '';
 
       const end = performance.now();
@@ -114,13 +117,6 @@ self.addEventListener('message', (e) => {
       time.runTime = end - now;
 
       self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
-
-      console.log('name', e.name);
-      console.log('message', e.message);
-      console.log('lineNumber', e.lineNumber);
-      console.log('columnNumber', e.columnNumber);
-      console.log('stack', e.stack);
-      console.log('proto', Object.getPrototypeOf(e));
     });
   }
 
@@ -143,7 +139,7 @@ self.addEventListener('message', (e) => {
         break;
       }
       case BrainfuckMode.CompileWebAssembly: {
-        const ops = translate_program(tokens, OptimizationKind.C2);
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
         compiled = compileToWat(ops);
         break;
       }
