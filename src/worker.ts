@@ -76,8 +76,8 @@ self.addEventListener('message', (e) => {
         }
         case BrainfuckMode.CompileWebAssembly: {
           const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-          // modulePromise = compileWasm(ops, inF, outF);
-          modulePromise = compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF);
+          modulePromise = compileWasm(ops, inF, outF);
+          // modulePromise = compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF);
           break;
         }
       }
