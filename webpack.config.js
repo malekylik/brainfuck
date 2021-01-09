@@ -42,6 +42,10 @@ const config = {
             '@babel/plugin-transform-runtime'
           ],
         }
+      },
+      {
+        test: /\.wasm$/,
+        loaders: ['wasm-loader']
       }
     ]
   },

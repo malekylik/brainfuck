@@ -97,71 +97,41 @@ export function compileToWat(ops: Ast): string {
           }
 
           case OpKind.WRITE_STDOUT: {
-            // if (op.argument > 1) {
-            // code.push(
-            //   Opcodes.i32_const,
-            //   ...unsignedLEB128(op.argument),
+            if (op.argument > 1) {
+              coder.encode(
+                `i32.const ${op.argument}\n` +
+                `local.set $loop_local\n` +
 
-            //   Opcodes.set_local,
-            //   ...loop_local,
+                `block\n` +
+                `loop\n` +
+                `local.get $loop_local\n` +
+                `i32.eqz\n` +
+                `br_if 1\n` +
 
-            //   Opcodes.block,
-            //   Valtype.void,
-            //   Opcodes.loop,
-            //   Valtype.void,
+                `local.get $loop_local\n` +
+                `i32.const 1\n` +
+                `i32.sub\n` +
+                `local.set $loop_local\n` +
 
-            //   Opcodes.get_local,
-            //   ...loop_local,
+                `local.get $p\n` +
+                `i32.const ${offset}\n` +
+                `i32.add\n` +
+                `i32.load8_u\n` +
+                `call $print\n` +
 
-            //   Opcodes.i32_eqz,
-
-            //   Opcodes.br_if,
-            //   ...unsignedLEB128(1),
-
-            //   // loop update
-            //   Opcodes.get_local,
-            //   ...loop_local,
-
-            //   Opcodes.i32_const,
-            //   ...unsignedLEB128(1),
-
-            //   Opcodes.i32_sub,
-
-            //   Opcodes.set_local,
-            //   ...loop_local,
-            //   // loop end update
-
-            //   // loop body
-            //   Opcodes.get_local,
-            //   ...p,
-
-            //   Opcodes.i32_const,
-            //   ...signedLEB128(offset),
-
-            //   Opcodes.i32_add,
-
-            //   Opcodes.i32_load8_u,
-            //   ...unsignedLEB128(0),
-            //   ...unsignedLEB128(0),
-
-            //   Opcodes.call,
-            //   ...unsignedLEB128(0),
-            //   // loop end body
-
-            //   Opcodes.br,
-            //   ...unsignedLEB128(0),
-            //   Opcodes.end,
-            //   Opcodes.end,
-            // );
-            // } else {
-            coder.encode(
-              `local.get $p\n` +
-              `i32.const ${offset}\n` +
-              `i32.add\n` +
-              `i32.load8_u\n` +
-              `call $print\n`
-            );
-            // }
+                `br 0\n` +
+                `end\n` +
+                `end\n`
+              );
+            } else {
+              coder.encode(
+                `local.get $p\n` +
+                `i32.const ${offset}\n` +
+                `i32.add\n` +
+                `i32.load8_u\n` +
+                `call $print\n`
+              );
+            }
 
             break;
           }

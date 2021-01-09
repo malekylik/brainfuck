@@ -1,11 +1,5 @@
-import { OpKind } from 'ir/opcode-kinds';
-import { Opcode } from 'ir/opcode';
-import { opKindToChar } from 'ir/utils';
 import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
-import { emitter, Valtype, Opcodes } from './emitter';
-import { unsignedLEB128, signedLEB128 } from './encoding';
-import { TextCoder } from 'utils/text-coder';
-import { Ast, Nodes, ParseSymbol } from 'ir/ast/ast';
+import { Ast } from 'ir/ast/ast';
 import { compileFromOpcodeToWasm } from './compiler-to-bin';
 import { compileToWat } from './compiler-to-wat';
 

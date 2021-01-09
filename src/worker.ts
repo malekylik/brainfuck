@@ -76,8 +76,8 @@ self.addEventListener('message', (e) => {
         }
         case BrainfuckMode.CompileWebAssembly: {
           const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-          modulePromise = compileWasm(ops, inF, outF);
-          // modulePromise = compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF);
+          // modulePromise = compileWasm(ops, inF, outF);
+          modulePromise = compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF);
           break;
         }
       }
@@ -122,7 +122,9 @@ self.addEventListener('message', (e) => {
     const compileWatToWasmBlob = message.data.compileWatToWasm;
 
     getCompileWatToWasm(compileWatToWasmBlob).then(f => compileFromWatToWasmBin = f)
-      .catch(e => console.log(e));
+      .catch(e => {
+        console.log('Error to compile getCompileWatToWasm ', e);
+      });
   }
 
   if (message.type === WorkerEvent.getGeneratedCode) {
@@ -132,12 +134,12 @@ self.addEventListener('message', (e) => {
 
     switch (mode) {
       case BrainfuckMode.CompileJavaScript: {
-        const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
         compiled = compileToJS(ops, inF, outF);
         break;
       }
       case BrainfuckMode.CompileWebAssembly: {
-        const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
         compiled = compileToWat(ops);
         break;
       }
