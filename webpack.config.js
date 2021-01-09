@@ -1,6 +1,5 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const { DefinePlugin } = require('webpack');
 
 const config = {
@@ -29,7 +28,6 @@ const config = {
       template: './src/index.html',
       filename: 'index.html',
     }),
-    new ForkTsCheckerWebpackPlugin(),
   ],
   module: {
     rules: [
@@ -39,8 +37,15 @@ const config = {
         loader: 'babel-loader',
         options: {
           presets: ['@babel/preset-env', '@babel/preset-react', '@babel/preset-typescript'],
-          plugins: ['@babel/plugin-transform-react-jsx'],
+          plugins: [
+            '@babel/plugin-transform-react-jsx',
+            '@babel/plugin-transform-runtime'
+          ],
         }
+      },
+      {
+        test: /\.wasm$/,
+        loaders: ['wasm-loader']
       }
     ]
   },
@@ -98,7 +103,8 @@ const workerConfig = {
         exclude: /(node_modules|bower_components)/,
         loader: 'babel-loader',
         options: {
-          presets: ['@babel/preset-env', '@babel/preset-typescript']
+          presets: ['@babel/preset-env', '@babel/preset-typescript'],
+          plugins: ['@babel/plugin-transform-runtime'],
         }
       }
     ]
@@ -119,7 +125,6 @@ const workerConfig = {
 };
 
 module.exports = (env, argv) => {
-  
   if (argv.mode === 'production') {
     config.mode = 'production';
     config.devtool = 'none';

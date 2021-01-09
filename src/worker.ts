@@ -1,14 +1,11 @@
-import 'core-js/stable';
-import 'regenerator-runtime/runtime';
-
 import { parse_from_stream } from './utils/parser';
-import { translate_program } from 'ir/parser';
+import { translate_program, translate_program_to_ast } from 'ir/parser';
 import { OptimizationKind } from 'ir/optimization-kinds';
 import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
 import { compile as compileJS, compileToJS } from 'compiler/js/compiler';
-import { compile as compileWasm, compileFromWatToWasm, compileToWat } from 'compiler/web-assembler/compiler';
+import { compile as compileWasm, compileToWat, compileFromWatToWasm } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
 import { BrainfuckMode } from 'consts/mode';
@@ -41,87 +38,115 @@ function outF(v: number): void {
 let compileFromWatToWasmBin: (wat: string) => Uint8Array;
 
 self.addEventListener('message', (e) => {
-    const message: WorkerMessage = e.data;
+  const message: WorkerMessage = e.data;
 
-    if (message.type === WorkerEvent.start) {
-      const { mode, src } = message.data;
-      const tokens = parse_from_stream(src);
-      const time = {
-        compileTime: 0,
-        runTime: 0,
-      };
-      let modulePromise = null;
+  if (message.type === WorkerEvent.start) {
+    const { mode, src } = message.data;
+    const tokens = parse_from_stream(src);
+    const time = {
+      compileTime: 0,
+      runTime: 0,
+    };
+    let modulePromise = null;
 
-      let now = performance.now();
+    let now = performance.now();
 
-      if (mode === BrainfuckMode.InterpretateBase || mode === BrainfuckMode.InterpretWithJumptable) {
-        let compile = null;
-
-        switch (mode) {
-          case BrainfuckMode.InterpretateBase: compile = baseInterpret; break;
-          case BrainfuckMode.InterpretWithJumptable: compile = InterpretWithJumptable; break;
-        }
-
-        modulePromise = compile(tokens, inF, outF);
-      }
-
-      if (mode === BrainfuckMode.InterpretWithIR || mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
-        const ops = translate_program(tokens, OptimizationKind.C2);
-        let compile = null;
-
-        switch (mode) {
-          case BrainfuckMode.InterpretWithIR: compile = OptimizedInterpret; break;
-          case BrainfuckMode.CompileJavaScript: compile = compileJS; break;
-          case BrainfuckMode.CompileWebAssembly: compile = compileWasm; break;
-          // case BrainfuckMode.CompileWebAssembly: compile = (ops: Array<Opcode>, inF: InputFunction, outF: OutputFunction) => compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF); break;
-        }
-
-        modulePromise = compile(ops, inF, outF);
-      }
-
-      modulePromise.then(({ module, memory }) => {
-          time.compileTime = performance.now() - now;
-
-          now = performance.now();
-          console.log(`start at ${now}`);
-
-          module.run();
-
-          self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
-          stringToSend = '';
-
-          console.log('memory', memory);
-
-          const end = performance.now();
-
-          console.log(`end at ${end}`);
-
-          time.runTime = end - now;
-
-          self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
-        });
-    }
-
-    if (message.type === WorkerEvent.setWat2Wasm) {
-      const compileWatToWasmBlob = message.data.compileWatToWasm;
-
-      getCompileWatToWasm(compileWatToWasmBlob).then(f => compileFromWatToWasmBin = f)
-        .catch(e => console.log(e));
-    }
-
-    if (message.type === WorkerEvent.getGeneratedCode) {
-      const { mode, src } = message.data;
-      const tokens = parse_from_stream(src);
-      const ops = translate_program(tokens, OptimizationKind.C2);
-      let compiled = '';
+    if (mode === BrainfuckMode.InterpretateBase || mode === BrainfuckMode.InterpretWithJumptable) {
+      let compile = null;
 
       switch (mode) {
-        case BrainfuckMode.CompileJavaScript: compiled = compileToJS(ops, inF, outF); break;
-        case BrainfuckMode.CompileWebAssembly: compiled = compileToWat(ops); break;
+        case BrainfuckMode.InterpretateBase: compile = baseInterpret; break;
+        case BrainfuckMode.InterpretWithJumptable: compile = InterpretWithJumptable; break;
       }
 
-      self.postMessage({ type: WorkerEvent.getGeneratedCode, data: { mode, src: compiled } });
+      modulePromise = compile(tokens, inF, outF);
     }
+
+    if (mode === BrainfuckMode.InterpretWithIR || mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
+      switch (mode) {
+        case BrainfuckMode.InterpretWithIR: {
+          const ops = translate_program(tokens, OptimizationKind.C1);
+          modulePromise = OptimizedInterpret(ops, inF, outF);
+          break;
+        }
+        case BrainfuckMode.CompileJavaScript: {
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+          modulePromise = compileJS(ops, inF, outF);
+          break;
+        }
+        case BrainfuckMode.CompileWebAssembly: {
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+          modulePromise = compileWasm(ops, inF, outF);
+          // modulePromise = compileFromWatToWasm(compileFromWatToWasmBin, ops, inF, outF);
+          break;
+        }
+      }
+    }
+
+    modulePromise.then(({ module, memory }) => {
+      time.compileTime = performance.now() - now;
+
+      now = performance.now();
+      console.log(`start at ${now}`);
+
+      module.run();
+
+      if (stringToSend !== '') {
+        self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
+        stringToSend = '';
+      }
+
+      console.log('memory', memory);
+
+      const end = performance.now();
+
+      console.log(`end at ${end}`);
+
+      time.runTime = end - now;
+
+      self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
+    }).catch(() => {
+      stringToSend = '';
+
+      const end = performance.now();
+
+      console.log(`end at ${end}`);
+
+      time.runTime = end - now;
+
+      self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
+    });
+  }
+
+  if (message.type === WorkerEvent.setWat2Wasm) {
+    const compileWatToWasmBlob = message.data.compileWatToWasm;
+
+    getCompileWatToWasm(compileWatToWasmBlob).then(f => compileFromWatToWasmBin = f)
+      .catch(e => {
+        console.log('Error to compile getCompileWatToWasm ', e);
+      });
+  }
+
+  if (message.type === WorkerEvent.getGeneratedCode) {
+    const { mode, src } = message.data;
+    const tokens = parse_from_stream(src);
+    let compiled = '';
+
+    switch (mode) {
+      case BrainfuckMode.CompileJavaScript: {
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+        compiled = compileToJS(ops, inF, outF);
+        break;
+      }
+      case BrainfuckMode.CompileWebAssembly: {
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
+        compiled = compileToWat(ops);
+        break;
+      }
+    }
+
+    self.postMessage({ type: WorkerEvent.getGeneratedCode, data: { mode, src: compiled } });
+  }
 });
 
 // parse to js = 25s

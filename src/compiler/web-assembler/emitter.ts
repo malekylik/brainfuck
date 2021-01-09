@@ -52,7 +52,34 @@ import { signedLEB128, unsignedLEB128, encodeString, ieee754 } from "./encoding"
 
 // Opcodes.end,
 
-const flatten = (arr: any[]) => [].concat.apply([], arr);
+const flatten = (arr: any[]): any[] => {
+  const state = [];
+  let i = 0;
+  let a = arr;
+  const result = [];
+
+  while (true) {
+    const val = a[i];
+    if (Array.isArray(val)) {
+      state.push({ i: i, a: a });
+      a = val;
+      i = -1;
+    } else if (val !== undefined) {
+      result.push(val)
+    }
+    if (i++ >= a.length - 1) {
+      if (state.length > 0) {
+        const s = state.pop();
+        a = s.a;
+        i = s.i + 1;
+      } else {
+        break;
+      }
+    }
+  }
+
+  return result;
+};
 
 // https://webassembly.github.io/spec/core/binary/modules.html#sections
 enum Section {
