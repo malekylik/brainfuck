@@ -2,23 +2,25 @@ import { OpKind } from 'ir/opcode-kinds';
 import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
 import { TextCoder } from 'utils/text-coder';
 import { Ast, MulExpression, Nodes, ParseSymbol } from 'ir/ast/ast';
+import { RequieredVisitor } from './visitor/required-js-visitor';
+import { JSVisitor, JSVisitorProps } from './visitor/js-visitor';
 
 // coder.encode(
 //   `function filterProfiling(traceEvents, depth, id, ph) {
 //     if (depth < 4) {
 //       perf.traceEvents.push({
 //         "cat": "MY_SUBSYSTEM",  //catagory
-  
+
 //         "pid": 0,  //process ID
-   
+
 //         "tid": 0, //thread ID
-   
+
 //         "ts": performance.now() * 1000, //time-stamp of this event
-   
+
 //         "ph": ph, // Begin sample
-   
+
 //         "name": "loop id " + id, //name of this event
-   
+
 //         "args": {}
 //       });}
 //   }\n`
@@ -54,8 +56,8 @@ function offsetDataptr(dataptr: string, offset: number): string {
 
 const memoryName = '__m__';
 
-function compile_prod(ops: Ast, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
-  const code = compile_ast(ops, inF, outF);
+function compile_prod(visitor: JSVisitor, ops: Ast, inF: InputFunction, outF: OutputFunction): Promise<CompiledModule> {
+  const code = compile_ast(visitor, ops, inF, outF);
 
   (self as any)[memoryName] = new Uint8Array(30000);
 
@@ -67,13 +69,14 @@ function compile_prod(ops: Ast, inF: InputFunction, outF: OutputFunction): Promi
   });
 }
 
-function _compileToJS(ops: Ast, inF: InputFunction, outF: OutputFunction): string {
-  const code = `const ${memoryName} = new Uint8Array(30000);\n` + compile_ast(ops, inF, outF);
+function _compileToJS(visitor: JSVisitor, ops: Ast, inF: InputFunction, outF: OutputFunction): string {
+  const code = `const ${memoryName} = new Uint8Array(30000);\n` + compile_ast(visitor, ops, inF, outF);
 
   return code;
 }
 
-function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
+function compile_ast(visitor: JSVisitor, ops: Ast, inF: InputFunction, outF: OutputFunction) {
+  const _visitor = new RequieredVisitor(visitor);
   const memoryName = '__m__';
   const dataptr = 'p';
   const inFName = inF.name;
@@ -84,20 +87,40 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
 
   (self as any)[memoryName] = new Uint8Array(30000);
 
-  coder.encode(`let ${dataptr} = 0;\n`);
+  const props: JSVisitorProps = {
+    pushLine: line => coder.encode(line),
+    getOffset: () => offset,
+    peakOffset: () => {
+      if (offset_move_start_stack.length > 0) {
+        return offset_move_start_stack[offset_move_start_stack.length - 1];
+      }
+
+      console.warn('Invalid access offset stack');
+
+      return 0;
+    },
+    getMemoryName: () => memoryName,
+    getPointerName: () => dataptr,
+    getINFName: () => inFName,
+    getOUTFName: () => outFName,
+    calculatePtr: offsetDataptr,
+    getDataFromMemory: () => `${memoryName}[${offsetDataptr(dataptr, offset)}]`,
+  }
+
+  _visitor.onStartCompiling(ops, props);
 
   function travers(ast: Ast) {
     ast.body.forEach((op: Nodes) => {
       if (op.type === ParseSymbol.ExpressionStatement) {
         switch (op.opkode) {
           case OpKind.INC_PTR: {
-            coder.encode(`${dataptr} += ${op.argument};\n`);
+            _visitor.onIncPtr(op, props);
 
             break;
           }
 
           case OpKind.DEC_PTR: {
-            coder.encode(`${dataptr} -= ${op.argument};\n`);
+            _visitor.onDecPtr(op, props);
 
             break;
           }
@@ -115,122 +138,81 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
           }
 
           case OpKind.INC_DATA: {
-            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${op.argument};\n`);
+            _visitor.onIncData(op, props);
 
             break;
           }
 
           case OpKind.DEC_DATA: {
-            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${op.argument};\n`);
+            _visitor.onDecData(op, props);
 
             break;
           }
 
           case OpKind.READ_STDIN: {
-            coder.encode(`for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${offsetDataptr(dataptr, offset)}] = ${inFName}();\n`);
+            _visitor.onReadData(op, props);
 
             break;
           }
 
           case OpKind.WRITE_STDOUT: {
-            if (op.argument < 2) {
-              coder.encode(`${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`);
-            } else {
-              coder.encode(`for (let i = 0; i < ${op.argument}; i++) ${outFName}(${memoryName}[${offsetDataptr(dataptr, offset)}]);\n`);
-            }
+            _visitor.onWriteData(op, props);
 
             break;
           }
 
           case OpKind.LOOP_SET_TO_ZERO: {
-            coder.encode(
-              `${memoryName}[${offsetDataptr(dataptr, offset)}] = 0;\n`
-            );
+            _visitor.onSetToZero(op, props);
 
             break;
           }
 
           case OpKind.MUL_INC_DATA: {
-            const loop_offset = offsetDataptr(dataptr, offset_move_start_stack[offset_move_start_stack.length - 1]);
+            _visitor.onMulIncData(op as MulExpression, props);
 
-            let arg = '';
-            let power = Math.log2(op.argument);
-
-            if (op.argument === 1) {
-              arg = `${memoryName}[${loop_offset}]`;
-            } else if (Number.isInteger(power)) {
-              arg = `${memoryName}[${loop_offset}] << ${power}`;
-            } else {
-              power = power | 0;
-              const mult = op.argument - (2 ** power);
-              const mult_str = mult === 1 ? '' : `* ${mult}`;
-              arg = `(${memoryName}[${loop_offset}] << ${power}) + ${memoryName}[${loop_offset}] ${mult_str}`;
-            }
-
-            arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${arg};\n`);
             break;
           }
 
           case OpKind.MUL_DEC_DATA: {
-            const loop_offset = offsetDataptr(dataptr, offset_move_start_stack[offset_move_start_stack.length - 1]);
-            let arg = op.argument === 1 ? `${memoryName}[${loop_offset}]` : `${op.argument} * ${memoryName}[${loop_offset}]`;
-            arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${arg};\n`);
+            _visitor.onMulDecData(op as MulExpression, props);
 
             break;
           }
 
           case OpKind.SET_DATA: {
-            coder.encode(
-              `${memoryName}[${offsetDataptr(dataptr, offset)}] = ${op.argument};\n`
-            );
+            _visitor.onSetData(op, props);
 
             break;
           }
 
           case OpKind.SEARCH_LOOP: {
-            coder.encode(
-              `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`
-            );
-            if (op.argument > 0) {
-              coder.encode(
-                `${dataptr} += ${op.argument};\n`
-              );
-            } else {
-              coder.encode(
-                `${dataptr} -= ${Math.abs(op.argument)};\n`
-              );
-            }
-            coder.encode(
-              `}\n`
-            );
+            _visitor.onSearchLoop(op, props);
 
             break;
           }
         }
       } else {
         if (op.opkode === OpKind.LOOP_MOVE_DATA) {
-          coder.encode(`if (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`);
-
+          _visitor.onDataLoopEnter(op, props);
           offset_move_start_stack.push(offset);
 
           travers(op);
 
           offset_move_start_stack.pop();
-          coder.encode(`}\n`);
+          _visitor.onDataLoopLeave(op, props);
         } else {
-          coder.encode(`while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`);
+          _visitor.onLoopEnter(op, props);
 
           travers(op);
 
-          coder.encode(`}\n`);
+          _visitor.onLoopLeave(op, props);
         }
       }
     });
   }
 
   travers(ops);
+  _visitor.onEndCompiling(ops, props);
 
   return coder.decode();
 }

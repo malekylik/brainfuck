@@ -15,6 +15,9 @@ import {
   pi_src, trianlge_src,
   oobrain_src,
 } from '../data/bf_programs';
+import { BaseJSVisitor } from 'compiler/js/visitor/base-js-visitor';
+
+const visitor = new BaseJSVisitor();
 
 describe('JS compiler', () => {
   describe('C0', () => {
@@ -22,7 +25,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(trianlge_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -33,7 +36,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(oobrain_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -44,7 +47,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(pi_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -55,7 +58,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(char_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -66,7 +69,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(beer_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -77,7 +80,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(hellom_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -88,7 +91,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(yapi_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -99,7 +102,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(mandelbrot_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -112,7 +115,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(trianlge_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -123,7 +126,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(oobrain_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -134,7 +137,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(pi_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -145,7 +148,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(char_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -156,7 +159,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(beer_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -167,7 +170,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(hellom_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -178,7 +181,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(yapi_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -189,7 +192,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(mandelbrot_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -202,7 +205,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(trianlge_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -213,7 +216,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(oobrain_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -224,7 +227,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(pi_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -235,7 +238,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(char_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -246,7 +249,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(beer_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -257,7 +260,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(hellom_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -268,7 +271,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(yapi_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 
@@ -279,7 +282,7 @@ describe('JS compiler', () => {
       const fStr = getIOOut();
       const tokens = parse_from_stream(mandelbrot_src);
       const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-      const modulePromise = await compile(ops, ioin, fStr);
+      const modulePromise = await compile(visitor, ops, ioin, fStr);
 
       modulePromise.module.run();
 

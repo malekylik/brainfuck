@@ -6,6 +6,7 @@ import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-wit
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
 import { compile as compileJS, compileToJS } from 'compiler/js/compiler';
 import { compile as compileWasm, compileToWat, compileFromWatToWasm } from 'compiler/web-assembler/compiler';
+import { BaseJSVisitor } from 'compiler/js/visitor/base-js-visitor';
 import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
 import { BrainfuckMode } from 'consts/mode';
@@ -71,7 +72,7 @@ self.addEventListener('message', (e) => {
         }
         case BrainfuckMode.CompileJavaScript: {
           const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-          modulePromise = compileJS(ops, inF, outF);
+          modulePromise = compileJS(new BaseJSVisitor(), ops, inF, outF);
           break;
         }
         case BrainfuckMode.CompileWebAssembly: {
@@ -135,7 +136,7 @@ self.addEventListener('message', (e) => {
     switch (mode) {
       case BrainfuckMode.CompileJavaScript: {
         const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-        compiled = compileToJS(ops, inF, outF);
+        compiled = compileToJS(new BaseJSVisitor(), ops, inF, outF);
         break;
       }
       case BrainfuckMode.CompileWebAssembly: {
