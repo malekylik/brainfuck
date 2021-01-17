@@ -6,7 +6,7 @@ import { BrainfuckMode } from 'consts/mode';
 import { isWebAssemblySupported } from 'consts/compatibility';
 
 type onWorkerOutHandler = (s: string) => void;
-type onWorkerEndHandler = (time: CompilerTimeProfile, mode: BrainfuckMode) => void;
+type onWorkerEndHandler = (time: CompilerTimeProfile, mode: BrainfuckMode, perf: string) => void;
 type onCodeGeneratedHandler = (s: string) => void;
 
 export function useWorker(
@@ -33,7 +33,7 @@ export function useWorker(
           }
 
           if (message.type === WorkerEvent.end) {
-            onWorkerEnd(message.data.time, message.data.mode);
+            onWorkerEnd(message.data.time, message.data.mode, message.data.perf);
           }
 
           if (message.type === WorkerEvent.getGeneratedCode) {

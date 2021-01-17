@@ -11,10 +11,13 @@ import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
 import { BrainfuckMode } from 'consts/mode';
 import { getCompileWatToWasm } from 'compiler/web-assembler/wat2wasm';
+import { ProfilingJSVisitor } from 'compiler/js/visitor/profiling-js.visitor';
 
 let prevFrame = 0;
 let lastFrame = 0;
 let stringToSend = '';
+let textToSaveAsBlob: Blob = null;
+let textToSaveAsURL: string = '';
 
 function inF(): string {
   return prompt('enter value');
@@ -42,6 +45,12 @@ self.addEventListener('message', (e) => {
   const message: WorkerMessage = e.data;
 
   if (message.type === WorkerEvent.start) {
+    if (textToSaveAsBlob) {
+      URL.revokeObjectURL(textToSaveAsURL);
+      textToSaveAsURL = '';
+      textToSaveAsBlob = null;
+    }
+
     const { mode, src } = message.data;
     const tokens = parse_from_stream(src);
     const time = {
@@ -72,7 +81,7 @@ self.addEventListener('message', (e) => {
         }
         case BrainfuckMode.CompileJavaScript: {
           const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-          modulePromise = compileJS(new BaseJSVisitor(), ops, inF, outF);
+          modulePromise = compileJS(new ProfilingJSVisitor(new BaseJSVisitor(), 2), ops, inF, outF);
           break;
         }
         case BrainfuckMode.CompileWebAssembly: {
@@ -105,8 +114,13 @@ self.addEventListener('message', (e) => {
 
       time.runTime = end - now;
 
-      self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
-    }).catch(() => {
+      textToSaveAsBlob = new Blob([JSON.stringify((globalThis as any).__perf__)], { type: 'application/json' });
+      textToSaveAsURL = URL.createObjectURL(textToSaveAsBlob);
+
+      (globalThis as any).__perf__ = null;
+
+      self.postMessage({ type: WorkerEvent.end, data: { time, mode, perf: textToSaveAsURL } });
+    }).catch((e) => {
       stringToSend = '';
 
       const end = performance.now();
@@ -136,7 +150,7 @@ self.addEventListener('message', (e) => {
     switch (mode) {
       case BrainfuckMode.CompileJavaScript: {
         const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-        compiled = compileToJS(new BaseJSVisitor(), ops, inF, outF);
+        compiled = compileToJS(new ProfilingJSVisitor(new BaseJSVisitor()), ops, inF, outF);
         break;
       }
       case BrainfuckMode.CompileWebAssembly: {

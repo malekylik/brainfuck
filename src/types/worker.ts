@@ -26,6 +26,7 @@ export type WorkerMessageEnd = {
   data: {
     time: CompilerTimeProfile,
     mode: BrainfuckMode,
+    perf: string;
   }
 };
 

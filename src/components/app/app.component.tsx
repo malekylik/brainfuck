@@ -26,6 +26,7 @@ export default function App() {
   const [open, setOpen] = useState(false);
   const [compiledCode, setCompiledCode] = useState('');
   const [isCodeCompiling, setIsCodeCompiling] = useState(false);
+  const [perfBlob, setPerfBlob] = useState('');
 
   const outputRef = useRef(null);
 
@@ -48,6 +49,7 @@ export default function App() {
 
   function runHandler() {
     workerRef.current.postMessage({ type: WorkerEvent.start, data: { src: bfSource, mode: currentMode } });
+    setPerfBlob('');
     setIsRunning(true);
   }
 
@@ -55,11 +57,12 @@ export default function App() {
     changeOutput(outputRef.current.value + v);
   }
 
-  function onWorkerEnd(time: CompilerTimeProfile, mode: BrainfuckMode) {
+  function onWorkerEnd(time: CompilerTimeProfile, mode: BrainfuckMode, perfBlob: string) {
     ReactDOM.unstable_batchedUpdates(() => {
       setEndTime(converMillisecondToString(time.runTime));
       setCompileTime(converMillisecondToString(time.compileTime));
       setStatMode(modeToString(mode));
+      setPerfBlob(perfBlob);
       setIsRunning(false);
     });
   }
@@ -83,6 +86,22 @@ export default function App() {
     if (compiledCode !== '') {
       setCompiledCode('');
     }
+  }
+
+  function savePerfInfo() {
+    function destroyClickedElement(event: MouseEvent) {
+      document.body.removeChild(event.target as Node);
+    }
+
+    const downloadLink = document.createElement('a');
+    downloadLink.download = '';
+    downloadLink.innerHTML = 'Download File';
+    downloadLink.href = perfBlob;
+    downloadLink.onclick = destroyClickedElement;
+    downloadLink.style.display = 'none';
+    document.body.appendChild(downloadLink);
+
+    downloadLink.click();
   }
 
   return (
@@ -115,21 +134,22 @@ export default function App() {
             onClick={openViewCodeModal}>
             view code
           </button>
+          <button disabled={perfBlob === ''} onClick={savePerfInfo}>save text</button>
         </div>
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)}>
         {
           isCodeCompiling ?
-          <div className={modalClasses.loader}>
-            <CircularProgress />
-          </div>
-          :
-          <p className={modalClasses.code}>
-            {
-              compiledCode
-            }
-          </p>
+            <div className={modalClasses.loader}>
+              <CircularProgress />
+            </div>
+            :
+            <p className={modalClasses.code}>
+              {
+                compiledCode
+              }
+            </p>
         }
 
 
