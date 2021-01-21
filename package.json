@@ -9,6 +9,7 @@
     "test-wasm": "jest --colors \"./test/webassembly\"",
     "compile": "tsc",
     "build": "webpack --mode=production --config webpack.config.js",
+    "build:prof-util": "webpack --mode=production --config perf-bin-to-json.webpack.js",
     "start": "webpack-dev-server --mode=development",
     "server": "http-server",
     "tslint": "tslint -c tslint.json 'src/**/*.ts'"

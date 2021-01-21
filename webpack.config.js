@@ -1,8 +1,10 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { DefinePlugin } = require('webpack');
+const { commonConfig } = require('./common-webpack.config');
 
 const config = {
+  ...commonConfig,
   entry: {
     main: path.resolve(__dirname, 'src', 'index.tsx'),
   },
@@ -42,10 +44,6 @@ const config = {
             '@babel/plugin-transform-runtime'
           ],
         }
-      },
-      {
-        test: /\.wasm$/,
-        loaders: ['wasm-loader']
       }
     ]
   },
@@ -61,22 +59,10 @@ const config = {
         }
     },
   },
-  resolve: {
-    alias: {
-      'ir': path.resolve(__dirname, 'src', 'ir'),
-      'interpreter': path.resolve(__dirname, 'src', 'interpreter'),
-      'compiler': path.resolve(__dirname, 'src', 'compiler'),
-      "text-generation": path.resolve(__dirname, 'src', 'text-generation'),
-      "components": path.resolve(__dirname, 'src', 'components'),
-      "consts": path.resolve(__dirname, 'src', 'consts'),
-      "types": path.resolve(__dirname, 'src', 'types'),
-      "utils": path.resolve(__dirname, 'src', 'utils'),
-    },
-    extensions: ['.js', '.jsx', '.ts', '.tsx']
-  }
 };
 
 const workerConfig = {
+  ...commonConfig,
   entry: {
     worker: path.resolve(__dirname, 'src', 'worker.ts'),
   },
@@ -109,19 +95,6 @@ const workerConfig = {
       }
     ]
   },
-  resolve: {
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
-    alias: {
-      'ir': path.resolve(__dirname, 'src', 'ir'),
-      'interpreter': path.resolve(__dirname, 'src', 'interpreter'),
-      'compiler': path.resolve(__dirname, 'src', 'compiler'),
-      "text-generation": path.resolve(__dirname, 'src', 'text-generation'),
-      "components": path.resolve(__dirname, 'src', 'components'),
-      "consts": path.resolve(__dirname, 'src', 'consts'),
-      "types": path.resolve(__dirname, 'src', 'types'),
-      "utils": path.resolve(__dirname, 'src', 'utils'),
-    }
-  }
 };
 
 module.exports = (env, argv) => {

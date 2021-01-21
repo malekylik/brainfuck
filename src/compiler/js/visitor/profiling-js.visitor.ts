@@ -18,30 +18,66 @@ export class ProfilingJSVisitor implements Required<JSVisitor> {
   onStartCompiling(ast: Ast, props: JSVisitorProps): void {
     props.pushLine(
       `
-      const perf = { traceEvents: [] };
-
-      function filterProfiling(id, ph) {
-          perf.traceEvents.push({
-            "cat": "MY_SUBSYSTEM",  //catagory
-
-            "pid": 0,  //process ID
-
-            "tid": 0, //thread ID
-
-            "ts": performance.now() * 1000, //time-stamp of this event
-
-            "ph": ph, // Begin sample
-
-            "name": String(id), //name of this event
-
-            "args": {}
-          });
-        }\n
+      // 2 byte - ph (0 - B, 1 - E)
+      // 2 byte - id
+      // 4 byte - time
+      // total size - 8
+      
+      const PHASE_B = 0;
+      const PHASE_E = 1;
+      const PAGE_SIZE = 65536;
+      const START_OFFSET = 8;
+      
+      let buffer = new ArrayBuffer(PAGE_SIZE);
+      let HEAP16 = new Uint16Array(buffer);
+      let HEAP32 = new Uint32Array(buffer);
+      
+      const currentTime = performance.now();
+      
+      let currentListSize = getCurrentMaxEntitySize();
+      
+      function getCurrentMaxEntitySize() {
+        return (buffer.byteLength / 8) - 1;
+      }
+      
+      function setPhase(entityId, ph) {
+        HEAP16[(START_OFFSET >>> 1) + ((entityId * 8) >>> 1)] = ph;
+      }
+      
+      function setId(entityId, id) {
+        HEAP16[(START_OFFSET >>> 1) + ((entityId * 8) >>> 1) + 1] = id;
+      }
+      
+      function setTime(entityId, time) {
+        HEAP32[(START_OFFSET >>> 2) + ((entityId * 8) >>> 2) + 1] = time;
+      }
+      
+      function insertNewEntity(ph, id) {
+        const time = ((performance.now() - currentTime) * 1000) | 0;
+        const listSize = HEAP32[0];
+      
+        if (!(listSize < currentListSize)) {
+          const tempHEAP16 = HEAP16;
+      
+          buffer = new ArrayBuffer(buffer.byteLength + PAGE_SIZE);
+          HEAP16 = new Uint16Array(buffer);
+          HEAP32 = new Uint32Array(buffer);
+      
+          HEAP16.set(tempHEAP16);
+          currentListSize = getCurrentMaxEntitySize();
+        }
+      
+        setPhase(listSize, ph);
+        setId(listSize, id);
+        setTime(listSize, time);
+      
+        HEAP32[0]++;
+      }
       `
     );
 
     props.pushLine(
-      `filterProfiling(0, 'B');\n`
+      `insertNewEntity(PHASE_B, 0);\n`
     );
 
     this.baseVisitor.onStartCompiling(ast, props);
@@ -52,9 +88,9 @@ export class ProfilingJSVisitor implements Required<JSVisitor> {
 
     props.pushLine(
       `
-      filterProfiling(0, 'E');\n
+      insertNewEntity(PHASE_E, 0);\n
 
-      globalThis.__perf__ = perf;\n`
+      globalThis.__perf__ = buffer;\n`
     );
   }
 
@@ -107,7 +143,7 @@ export class ProfilingJSVisitor implements Required<JSVisitor> {
   onLoopEnter(node: LoopBlock, props: JSVisitorProps): void {
     props.pushLine(`// loop id: ${this.id}\n`);
     if (this.idStack.length < this.maxLoopDeepPerf) {
-      props.pushLine(`filterProfiling(${this.id}, 'B');\n`);
+      props.pushLine(`insertNewEntity(PHASE_B, ${this.id});\n`);
     }
 
     this.idStack.push(this.id);
@@ -121,7 +157,7 @@ export class ProfilingJSVisitor implements Required<JSVisitor> {
 
     const id = this.idStack.pop();
     if (this.idStack.length < this.maxLoopDeepPerf) {
-      props.pushLine(`filterProfiling(${id}, 'E');\n`);
+      props.pushLine(`insertNewEntity(PHASE_E, ${id});\n`);
     }
   }
 

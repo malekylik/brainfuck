@@ -114,7 +114,10 @@ self.addEventListener('message', (e) => {
 
       time.runTime = end - now;
 
-      textToSaveAsBlob = new Blob([JSON.stringify((globalThis as any).__perf__)], { type: 'application/json' });
+      const HEAP8 = new Uint8Array((globalThis as any).__perf__);
+      const HEAP32 = new Uint32Array((globalThis as any).__perf__);
+
+      textToSaveAsBlob = new Blob([HEAP8.subarray(0, 8 + HEAP32[0] * 8)], { type: 'application/bin' });
       textToSaveAsURL = URL.createObjectURL(textToSaveAsBlob);
 
       (globalThis as any).__perf__ = null;
@@ -150,7 +153,7 @@ self.addEventListener('message', (e) => {
     switch (mode) {
       case BrainfuckMode.CompileJavaScript: {
         const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
-        compiled = compileToJS(new ProfilingJSVisitor(new BaseJSVisitor()), ops, inF, outF);
+        compiled = compileToJS(new ProfilingJSVisitor(new BaseJSVisitor(), 3), ops, inF, outF);
         break;
       }
       case BrainfuckMode.CompileWebAssembly: {
