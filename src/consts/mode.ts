@@ -3,5 +3,6 @@ export enum BrainfuckMode {
   InterpretWithJumptable = 1,
   InterpretWithIR = 2,
   CompileJavaScript = 3,
-  CompileWebAssembly = 4,
+  CompileAsmJavaScript = 4,
+  CompileWebAssembly = 5,
 }

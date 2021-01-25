@@ -40,7 +40,7 @@ export type WorkerMessageGetGeneratedCode = {
   type: WorkerEvent.getGeneratedCode,
   data: {
     src: string,
-    mode: BrainfuckMode.CompileJavaScript | BrainfuckMode.CompileWebAssembly,
+    mode: BrainfuckMode.CompileJavaScript | BrainfuckMode.CompileAsmJavaScript | BrainfuckMode.CompileWebAssembly,
   }
 };
 

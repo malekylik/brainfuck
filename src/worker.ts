@@ -5,6 +5,7 @@ import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
 import { compile as compileJS, compileToJS } from 'compiler/js/compiler';
+import { compile as compileAsmJS, compileToAsmJS } from 'compiler/asmjs/compiler';
 import { compile as compileWasm, compileToWat, compileFromWatToWasm } from 'compiler/web-assembler/compiler';
 import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
@@ -62,7 +63,12 @@ self.addEventListener('message', (e) => {
       modulePromise = compile(tokens, inF, outF);
     }
 
-    if (mode === BrainfuckMode.InterpretWithIR || mode === BrainfuckMode.CompileJavaScript || mode === BrainfuckMode.CompileWebAssembly) {
+    if (
+      mode === BrainfuckMode.InterpretWithIR ||
+      mode === BrainfuckMode.CompileJavaScript ||
+      mode === BrainfuckMode.CompileAsmJavaScript ||
+      mode === BrainfuckMode.CompileWebAssembly
+    ) {
       switch (mode) {
         case BrainfuckMode.InterpretWithIR: {
           const ops = translate_program(tokens, OptimizationKind.C1);
@@ -72,6 +78,11 @@ self.addEventListener('message', (e) => {
         case BrainfuckMode.CompileJavaScript: {
           const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
           modulePromise = compileJS(ops, inF, outF);
+          break;
+        }
+        case BrainfuckMode.CompileAsmJavaScript: {
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+          modulePromise = compileAsmJS(ops, inF, outF);
           break;
         }
         case BrainfuckMode.CompileWebAssembly: {
@@ -136,6 +147,11 @@ self.addEventListener('message', (e) => {
       case BrainfuckMode.CompileJavaScript: {
         const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
         compiled = compileToJS(ops, inF, outF);
+        break;
+      }
+      case BrainfuckMode.CompileAsmJavaScript: {
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C0);
+        compiled = compileToAsmJS(ops, inF, outF);
         break;
       }
       case BrainfuckMode.CompileWebAssembly: {
