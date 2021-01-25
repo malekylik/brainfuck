@@ -180,15 +180,15 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
 
           case OpKind.SEARCH_LOOP: {
             coder.encode(
-              `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`
+              `while (${memoryName}[${offsetDataptr(dataptr, offset)}]|0) {\n`
             );
             if (op.argument > 0) {
               coder.encode(
-                `${dataptr} += ${op.argument};\n`
+                `${dataptr} = ((${dataptr}|0) + ${op.argument})|0;\n`
               );
             } else {
               coder.encode(
-                `${dataptr} -= ${Math.abs(op.argument)};\n`
+                `${dataptr} = ((${dataptr}|0) - ${Math.abs(op.argument)})|0;\n`
               );
             }
             coder.encode(
