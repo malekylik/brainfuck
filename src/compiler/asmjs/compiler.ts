@@ -4,7 +4,7 @@ import { TextCoder } from 'utils/text-coder';
 import { Ast, LoopBlock, MulExpression, Nodes, ParseSymbol } from 'ir/ast/ast';
 
 function offsetDataptr(dataptr: string, offset: number): string {
-  return `((${dataptr}|0) + (${offset}|0)) >> 0`;
+  return `((${dataptr}|0) + ${offset}) >> 0`;
 }
 
 const memoryName = '__m__';
@@ -146,26 +146,26 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
             let power = Math.log2(op.argument);
 
             if (op.argument === 1) {
-              arg = `${memoryName}[${loop_offset}]`;
+              arg = `(${memoryName}[${loop_offset}]|0)`;
             } else if (Number.isInteger(power)) {
-              arg = `${memoryName}[${loop_offset}] << ${power}`;
+              arg = `((${memoryName}[${loop_offset}] << ${power})|0)`;
             } else {
               power = power | 0;
               const mult = op.argument - (2 ** power);
               const mult_str = mult === 1 ? '' : `* ${mult}`;
-              arg = `(${memoryName}[${loop_offset}] << ${power}) + ${memoryName}[${loop_offset}] ${mult_str}`;
+              arg = `((${memoryName}[${loop_offset}] << ${power})|0) + (${memoryName}[${loop_offset}]|0) ${mult_str}`;
             }
 
-            arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] += ${arg};\n`);
+            arg = (op as MulExpression).loop_divider === -1 ? arg : `((${arg} / ${Math.abs((op as MulExpression).loop_divider)})|0)`;
+            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] = ((${memoryName}[${offsetDataptr(dataptr, offset)}]|0) + ${arg})|0;\n`);
             break;
           }
 
           case OpKind.MUL_DEC_DATA: {
             const loop_offset = offsetDataptr(dataptr, offset_move_start_stack[offset_move_start_stack.length - 1]);
-            let arg = op.argument === 1 ? `${memoryName}[${loop_offset}]` : `${op.argument} * ${memoryName}[${loop_offset}]`;
-            arg = (op as MulExpression).loop_divider === -1 ? arg : `(${arg} / ${Math.abs((op as MulExpression).loop_divider)}) | 0`;
-            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] -= ${arg};\n`);
+            let arg = op.argument === 1 ? `(${memoryName}[${loop_offset}]|0)` : `${op.argument} * ${memoryName}[${loop_offset}]`;
+            arg = (op as MulExpression).loop_divider === -1 ? arg : `((${arg} / ${Math.abs((op as MulExpression).loop_divider)})|0)`;
+            coder.encode(`${memoryName}[${offsetDataptr(dataptr, offset)}] = ((${memoryName}[${offsetDataptr(dataptr, offset)}]|0) - ${arg})|0;\n`);
 
             break;
           }
@@ -200,7 +200,7 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
         }
       } else {
         if (op.opkode === OpKind.LOOP_MOVE_DATA) {
-          coder.encode(`if (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`);
+          coder.encode(`if (${memoryName}[${offsetDataptr(dataptr, offset)}]|0) {\n`);
 
           offset_move_start_stack.push(offset);
 
@@ -209,7 +209,7 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
           offset_move_start_stack.pop();
           coder.encode(`}\n`);
         } else {
-          coder.encode(`while (${memoryName}[${offsetDataptr(dataptr, offset)}] | 0) {\n`);
+          coder.encode(`while (${memoryName}[${offsetDataptr(dataptr, offset)}]|0) {\n`);
 
           travers(op);
 

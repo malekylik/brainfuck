@@ -81,7 +81,7 @@ self.addEventListener('message', (e) => {
           break;
         }
         case BrainfuckMode.CompileAsmJavaScript: {
-          const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+          const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
           modulePromise = compileAsmJS(ops, inF, outF);
           break;
         }
@@ -150,7 +150,7 @@ self.addEventListener('message', (e) => {
         break;
       }
       case BrainfuckMode.CompileAsmJavaScript: {
-        const ops = translate_program_to_ast(tokens, OptimizationKind.C1);
+        const ops = translate_program_to_ast(tokens, OptimizationKind.C2);
         compiled = compileToAsmJS(ops, inF, outF);
         break;
       }
