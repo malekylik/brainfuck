@@ -51,6 +51,15 @@ export function CompilerMode(props: CompilerModeProps) {
           />
         </p>
         <p>
+          <label htmlFor='compiler-mode-compile-asm-java-script'>AsmJS</label>
+          <input
+            id='compiler-mode-compile-asm-java-script'
+            type='checkbox'
+            checked={currentMode === BrainfuckMode.CompileAsmJavaScript}
+            onChange={() => setCurrentMode(BrainfuckMode.CompileAsmJavaScript)}
+          />
+        </p>
+        <p>
           <label htmlFor='compiler-mode-compile-web-assembly'>WebAssembly</label>
           <input
             id='compiler-mode-compile-web-assembly'

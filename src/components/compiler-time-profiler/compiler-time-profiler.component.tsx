@@ -6,8 +6,6 @@ type CompilerTimeProfilerProps = {
   endTime: string,
 };
 
-
-
 export function CompilerTimeProfiler(props: CompilerTimeProfilerProps) {
   const { statMode, compileTime, endTime } = props;
 

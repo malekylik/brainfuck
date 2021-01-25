@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npm run test-js && npm run test-wasm",
+    "test": "npm run test-js && npm run test-asmjs && npm run test-wasm",
     "test-js": "jest --colors \"./test/js\"",
+    "test-asmjs": "jest --colors \"./test/asmjs\"",
     "test-wasm": "jest --colors \"./test/webassembly\"",
     "compile": "tsc",
     "build": "webpack --mode=production --config webpack.config.js",

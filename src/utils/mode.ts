@@ -6,6 +6,7 @@ export function modeToString(mode: BrainfuckMode): string {
     case BrainfuckMode.InterpretWithJumptable: return 'Interpreter with Jumptable';
     case BrainfuckMode.InterpretWithIR: return 'Interpreter with Opcodes';
     case BrainfuckMode.CompileJavaScript: return 'Compile to JavaScript';
+    case BrainfuckMode.CompileAsmJavaScript: return 'Compile to AsmJS';
     case BrainfuckMode.CompileWebAssembly: return 'Compile to WebAssembly';
   }
 
