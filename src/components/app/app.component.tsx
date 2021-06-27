@@ -27,7 +27,7 @@ export default function App() {
   const [compiledCode, setCompiledCode] = useState('');
   const [isCodeCompiling, setIsCodeCompiling] = useState(false);
 
-  const outputRef = useRef(null);
+  const outputRef = useRef<HTMLTextAreaElement>(null);
 
   const wrapperClasses = useWrapperStyles();
   const buttonClasses = useButtonStyles();
@@ -47,12 +47,16 @@ export default function App() {
   }
 
   function runHandler() {
-    workerRef.current.postMessage({ type: WorkerEvent.start, data: { src: bfSource, mode: currentMode } });
-    setIsRunning(true);
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: WorkerEvent.start, data: { src: bfSource, mode: currentMode } });
+      setIsRunning(true);
+    }
   }
 
   function onWorkerOut(v: string) {
-    changeOutput(outputRef.current.value + v);
+    const output = outputRef.current ? outputRef.current.value + v : v;
+
+    changeOutput(output);
   }
 
   function onWorkerEnd(time: CompilerTimeProfile, mode: BrainfuckMode) {
@@ -66,7 +70,7 @@ export default function App() {
 
   function openViewCodeModal() {
     setOpen(true);
-    if (compiledCode === '') {
+    if (compiledCode === '' && workerRef.current) {
       setIsCodeCompiling(true);
       workerRef.current.postMessage({ type: WorkerEvent.getGeneratedCode, data: { src: bfSource, mode: currentMode } });
     }

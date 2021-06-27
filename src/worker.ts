@@ -17,7 +17,7 @@ let lastFrame = 0;
 let stringToSend = '';
 
 function inF(): string {
-  return prompt('enter value');
+  return prompt('enter value') ?? '';
 }
 
 function outF(v: number): void {
@@ -92,6 +92,12 @@ self.addEventListener('message', (e) => {
           break;
         }
       }
+    }
+
+    if (modulePromise === null) {
+      console.warn('Module compilitaion promise is null. Probably compilation mode is invalid.');
+
+      modulePromise = Promise.reject();
     }
 
     modulePromise.then(({ module, memory }) => {

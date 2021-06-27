@@ -167,7 +167,8 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
             `}\n`
           );
 
-          offset = offset_stack.pop();
+          // Should be shown as array at compile time
+          offset = offset_stack.pop() ?? 0;
 
           loop_depth.pop();
 
@@ -212,7 +213,8 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
             `} // ${pc} DATA_LOOP_END \n`
           );
 
-          offset = loop_data_offsets.pop();
+          // Should be shown as array at compile time
+          offset = loop_data_offsets.pop() ?? 0;
 
           break;
         }

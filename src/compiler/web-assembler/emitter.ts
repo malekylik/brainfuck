@@ -68,8 +68,8 @@ const flatten = (arr: any[]): any[] => {
       result.push(val)
     }
     if (i++ >= a.length - 1) {
-      if (state.length > 0) {
-        const s = state.pop();
+      const s = state.pop();
+      if (s) {
         a = s.a;
         i = s.i + 1;
       } else {

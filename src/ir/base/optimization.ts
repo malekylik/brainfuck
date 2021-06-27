@@ -2,6 +2,8 @@ import { createOpcode, Opcode } from 'ir/opcode';
 import { OpKind } from 'ir/opcode-kinds';
 import { OptimizationKind } from 'ir/optimization-kinds';
 
+// TODO: should be checked if it's possible to remove this logic in favor of optimization with ast
+
 type optimize_loop_function = (ops: Array<Opcode>, loop_start: number, loop_end: number) => Array<Opcode>;
 
 function update_ops(ops: Array<Opcode>, optimized_loop: Array<Opcode>, loop_start: number, loop_end: number): Array<Opcode> {

@@ -1,24 +1,25 @@
 import { OpKind } from './opcode-kinds';
 import { Opcode } from './opcode';
+import { BrainfuckAplh } from './brainfuck-alph';
 
 export function opKindToChar(opKind: OpKind) : string{
   switch (opKind) {
     case OpKind.INC_PTR:
-      return ">";
+      return BrainfuckAplh.MovePtrForward;
     case OpKind.DEC_PTR:
-      return "<";
+      return BrainfuckAplh.MovePtrBackward;
     case OpKind.INC_DATA:
-      return "+";
+      return BrainfuckAplh.IncreaseCell;
     case OpKind.DEC_DATA:
-      return "-";
+      return BrainfuckAplh.DecreaseCell;
     case OpKind.READ_STDIN:
-      return ",";
+      return BrainfuckAplh.GetChar;
     case OpKind.WRITE_STDOUT:
-      return ".";
+      return BrainfuckAplh.PutChar;
     case OpKind.JUMP_IF_DATA_ZERO:
-      return "[";
+      return BrainfuckAplh.StartLoop;
     case OpKind.JUMP_IF_DATA_NOT_ZERO:
-      return "]";
+      return BrainfuckAplh.EndLoop;
     case OpKind.LOOP_SET_TO_ZERO:
       return "s";
     case OpKind.LOOP_MOVE_PTR:

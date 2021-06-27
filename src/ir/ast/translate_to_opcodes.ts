@@ -1,7 +1,8 @@
+import { BrainfuckAplh } from 'ir/brainfuck-alph';
 import { createToken, Token } from 'ir/token';
 import { TokenKind } from 'ir/token-kinds';
 
-export function parse_to_opcodes(tokens: Array<string>): Array<Token> {
+export function parse_to_opcodes(tokens: Array<string | BrainfuckAplh>): Array<Token> {
   let pc = 0;
   let line = 0;
   let program_size = tokens.length;
@@ -12,7 +13,7 @@ export function parse_to_opcodes(tokens: Array<string>): Array<Token> {
 
     const start = pc++;
 
-    while ((instruction !== '[' && instruction !== ']') && pc < program_size && tokens[pc] === instruction) {
+    while ((instruction !== BrainfuckAplh.StartLoop && instruction !== BrainfuckAplh.EndLoop) && pc < program_size && tokens[pc] === instruction) {
       pc++;
     }
 
@@ -20,20 +21,20 @@ export function parse_to_opcodes(tokens: Array<string>): Array<Token> {
 
     let kind = TokenKind.INVALID_TOKEN;
     switch (instruction) {
-      case '[': {
+      case BrainfuckAplh.StartLoop: {
         kind = TokenKind.BLOCK_START;
         break;
       }
-      case ']': {
+      case BrainfuckAplh.EndLoop: {
         kind = TokenKind.BLOCK_END;
         break;
       }
-      case '>':
-      case '<':
-      case '+':
-      case '-':
-      case ',':
-      case '.': {
+      case BrainfuckAplh.MovePtrForward:
+      case BrainfuckAplh.MovePtrBackward:
+      case BrainfuckAplh.IncreaseCell:
+      case BrainfuckAplh.DecreaseCell:
+      case BrainfuckAplh.GetChar:
+      case BrainfuckAplh.PutChar: {
         kind = TokenKind.EXPRESION;
         break;
       }
@@ -42,10 +43,11 @@ export function parse_to_opcodes(tokens: Array<string>): Array<Token> {
         break;
       }
 
-      default: { console.warn(`"bad char '${instruction}' at pc=${start}`); }
+      // TODO: show error to user
+      default: { console.warn(`bad char '${instruction}' at pc=${start}`); }
     }
 
-    ops.push(createToken(kind, instruction, num_repeats, { start, line, end: pc }));
+    ops.push(createToken(kind, instruction as BrainfuckAplh, num_repeats, { start, line, end: pc }));
   }
 
   return ops;

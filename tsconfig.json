@@ -12,6 +12,8 @@
       "lib": ["ESNext", "WebWorker", "DOM"],
       "baseUrl": "./",
       "jsx": "react",
+      "resolveJsonModule": true,
+      "strictNullChecks": true,
       "paths": {
         "ir/*": ["./src/ir/*"],
         "interpreter/*": ["./src/interpreter/*"],

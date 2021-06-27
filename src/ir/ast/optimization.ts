@@ -102,11 +102,11 @@ function optimize_c1(ops: Ast): Ast {
 
         const prev_loop = i - 2 >= 0 ? ast.body[i - 2] : null;
         const is_prev_loop_search = (
-          i - 2 >= 0 &&
+          prev_loop ?
           (
             (prev_loop.type === ParseSymbol.BlockStatement && prev_loop.search_by !== 0 && prev_loop.search_by === -n.argument)
             // (prev_loop.opkode === OpKind.SEARCH_LOOP && n.argument === -prev_loop.argument)
-          )
+          ) : null
         );
 
         if (is_prev_token_search && is_prev_loop_search) {

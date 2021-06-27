@@ -13,8 +13,8 @@ export function useWorker(
   onWorkerOut: onWorkerOutHandler,
   onWorkerEnd: onWorkerEndHandler,
   onCodeGenerated: onCodeGeneratedHandler,
-): [React.MutableRefObject<Worker>, boolean] {
-  const workerRef = useRef<Worker>(null);
+): [React.MutableRefObject<Worker | null>, boolean] {
+  const workerRef: React.MutableRefObject<Worker | null> = useRef(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,7 +44,10 @@ export function useWorker(
         workerRef.current?.addEventListener('message', messageHandler);
         setLoading(false);
       })
-      .catch(e => setLoading(false));
+      .catch(e => {
+        // TODO: add showing an error for worker loading at UI
+        setLoading(false)
+      });
 
       return () => {
         workerRef.current?.terminate();
@@ -54,16 +57,17 @@ export function useWorker(
   return [workerRef, loading];
 }
 
-export function useWat2Wasm(wRef: React.MutableRefObject<Worker>, workerLoading: boolean): void {
+export function useWat2Wasm(wRef: React.MutableRefObject<Worker | null>, workerLoading: boolean): void {
 
   useEffect(() => {
-    if (isWebAssemblySupported && !workerLoading) {
+    if (isWebAssemblySupported && !workerLoading && wRef.current !== null) {
       fetch('./wat2wasm.wasm')
-      .then((re) => re.blob())
-      .then((b) => {
+      .then(re => re.blob())
+      .then(b => {
         const url = URL.createObjectURL(b);
 
-        wRef.current.postMessage({ type: WorkerEvent.setWat2Wasm, data: { compileWatToWasm: url } });
+        // Check for null in if
+        wRef.current!.postMessage({ type: WorkerEvent.setWat2Wasm, data: { compileWatToWasm: url } });
       });
     }
   }, [workerLoading]);

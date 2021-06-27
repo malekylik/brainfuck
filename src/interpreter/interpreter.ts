@@ -108,7 +108,8 @@ export function interpret(ops: Array<Opcode>, inF: InputFunction, outF: OutputFu
             pc = op.argument;
             offset = offset_stack[offset_stack.length - 1];
           } else {
-            offset = offset_stack.pop();
+            // Should be shown as array at compile time
+            offset = offset_stack.pop() ?? 0;
           }
 
           break;
@@ -156,7 +157,8 @@ export function interpret(ops: Array<Opcode>, inF: InputFunction, outF: OutputFu
             memory[dataptr + loop_data_offset] = 0;
           }
 
-          offset = loop_data_offsets.pop();
+          // Should be shown as array at compile time
+          offset = loop_data_offsets.pop() ?? 0;
           loop_data_offset = loop_data_offsets[loop_data_offsets.length - 1];
 
           break;

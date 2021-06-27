@@ -7,7 +7,8 @@ interface TextCoder {
   decode(): string;
 }
 
-let TextCoderImplementation: { new (): TextCoder } = null;
+// Would be setted anyway in next if statement
+let TextCoderImplementation: { new (): TextCoder } = null as unknown as { new (): TextCoder };
 
 if (isTextCoderSupported) {
   const txd = new TextDecoder();
@@ -87,9 +88,5 @@ if (isTextCoderSupported) {
     }
   }
 }
-
-
-
-
 
 export { TextCoderImplementation as TextCoder };

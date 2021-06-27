@@ -1,3 +1,4 @@
+import { BrainfuckAplh } from './brainfuck-alph';
 import { TokenKind } from './token-kinds';
 
 type TokenLoc = {
@@ -8,12 +9,12 @@ type TokenLoc = {
 
 export type Token = {
   kind: TokenKind,
-  operator: string,
+  operator: BrainfuckAplh,
   argument: number,
   loc: TokenLoc,
 }
 
-export function createToken(opKind: TokenKind, operator: string, argument: number, loc: TokenLoc): Token {
+export function createToken(opKind: TokenKind, operator: BrainfuckAplh, argument: number, loc: TokenLoc): Token {
   return {
     kind: opKind,
     operator,

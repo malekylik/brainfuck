@@ -7,7 +7,7 @@ import { translate_program_to_ast } from 'ir/parser';
 import { parse_from_stream } from 'utils/parser';
 import { OptimizationKind } from 'ir/optimization-kinds';
 import { compile, compileFromWatToWasm } from 'compiler/web-assembler/compiler';
-import { getCompileWatToWasmFromBin } from 'D:/others/frontend/workspace/brainfuck/src/compiler/web-assembler/wat2wasm';
+import { getCompileWatToWasmFromBin } from 'compiler/web-assembler/wat2wasm';
 import { ioin, getIOOut } from '../mock';
 import {
   mandelbrot_answer, yapi_answer,
@@ -22,7 +22,7 @@ import {
   oobrain_src,
 } from '../data/bf_programs';
 import { Ast } from 'ir/ast/ast';
-import { InputFunction, OutputFunction } from 'types/compiler';
+import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
 
 const readFileAsync = promisify(fs.readFile);
 
@@ -300,8 +300,10 @@ describe('WebAssembly compiler', () => {
   });
 
   describe('compileFromWatToWasm', () => {
-    const moduleBinPath = path.resolve(__dirname, '..', '..', 'src', 'wat2wasm_c', 'wat2wasm.wasm')
-    let compile = null;
+    const moduleBinPath = path.resolve(__dirname, '..', '..', 'src', 'wat2wasm_c', 'wat2wasm.wasm');
+    type CompileFn = (ops: Ast, inF: InputFunction, outF: OutputFunction) => Promise<CompiledModule>;
+    // Set in beforeAll callback
+    let compile: CompileFn = null as unknown as CompileFn;
 
     beforeAll(async () => {
       const buffer = await readFileAsync(moduleBinPath);
