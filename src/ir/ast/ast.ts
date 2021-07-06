@@ -3,6 +3,20 @@ import { OpcodeLoc } from 'ir/opcode';
 import { OpKind } from 'ir/opcode-kinds';
 import { Token } from 'ir/token';
 
+interface ResultOk<T> {
+  isError(): false;
+
+  getValue(): T;
+}
+
+interface ResultErr<E> {
+  isError(): true;
+
+  getError(): E;
+}
+
+type Result<T, E> = ResultOk<T> | ResultErr<E>;
+
 export type Ast = Program;
 
 export type LoopBlock = {

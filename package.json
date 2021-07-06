@@ -8,6 +8,7 @@
     "test-js": "jest --colors \"./test/js\"",
     "test-asmjs": "jest --colors \"./test/asmjs\"",
     "test-wasm": "jest --colors \"./test/webassembly\"",
+    "test-ast": "jest --colors \"./test/ast\"",
     "compile": "tsc",
     "build": "webpack --mode=production --config webpack.config.js",
     "start": "webpack-dev-server --mode=development",
