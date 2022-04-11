@@ -11,6 +11,7 @@ export type WorkerMessageStart = {
   data: {
     src: string,
     mode: BrainfuckMode,
+    threashold: number,
   }
 };
 
@@ -40,7 +41,7 @@ export type WorkerMessageGetGeneratedCode = {
   type: WorkerEvent.getGeneratedCode,
   data: {
     src: string,
-    mode: BrainfuckMode.CompileJavaScript | BrainfuckMode.CompileAsmJavaScript | BrainfuckMode.CompileWebAssembly,
+    mode: BrainfuckMode.InterpretWithJIT | BrainfuckMode.CompileJavaScript | BrainfuckMode.CompileAsmJavaScript | BrainfuckMode.CompileWebAssembly,
   }
 };
 

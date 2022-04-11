@@ -2,14 +2,22 @@ import React from 'react';
 
 import { BrainfuckMode } from 'consts/mode';
 import { isWebAssemblySupported } from 'consts/compatibility';
+import { NumberInput } from 'components/number-input/number-input';
+import { useLabelInputStyles, useOptionFieldsStyles, useOptionWrapperStyles } from './compiler-mode.style';
 
 type CompilerModeProps = {
   currentMode: BrainfuckMode,
+  jitThreashold: number,
   setCurrentMode: (mode: BrainfuckMode) => void,
+  setJITThreashold: (threashold: number) => void;
 };
 
 export function CompilerMode(props: CompilerModeProps) {
-  const { currentMode, setCurrentMode } = props;
+  const { currentMode, jitThreashold, setCurrentMode, setJITThreashold } = props;
+
+  const optionWrapperClasses = useOptionWrapperStyles();
+  const labelInputClasses = useLabelInputStyles();
+  const optionFieldsClasses = useOptionFieldsStyles();
 
   return (
       <div>
@@ -41,6 +49,26 @@ export function CompilerMode(props: CompilerModeProps) {
             onChange={() => setCurrentMode(BrainfuckMode.InterpretWithIR)}
           />
         </p>
+        <div className={optionWrapperClasses.root}>
+          <p className={optionFieldsClasses.root}>
+            <label htmlFor='compiler-mode-interpretate-jit'>Interpreter JIT</label>
+            <input
+              id='compiler-mode-interpretate-jit'
+              type='checkbox'
+              checked={currentMode === BrainfuckMode.InterpretWithJIT}
+              onChange={() => setCurrentMode(BrainfuckMode.InterpretWithJIT)}
+            />
+          </p>
+          <p>
+          <label htmlFor='compiler-mode-interpretate-with-ir-threashlod' className={labelInputClasses.root}>JIT threashold</label>
+          <NumberInput
+            id='compiler-mode-interpretate-with-ir-threashlod'
+            defaultValue={jitThreashold}
+            min={1}
+            onChange={(value) => { setJITThreashold(value); }}
+          />
+          </p>
+        </div>
         <p>
           <label htmlFor='compiler-mode-compile-java-script'>JavaScript</label>
           <input

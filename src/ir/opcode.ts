@@ -6,11 +6,21 @@ export type OpcodeLoc = {
   line: number;
 };
 
-export type Opcode = {
+export type SimpleOpcode = {
   kind: OpKind,
   argument: number,
   loc: OpcodeLoc,
 }
+
+export type FuncOpcode = {
+  kind: OpKind.RUN_FUNC,
+  func: Function,
+  argument: number,
+  name: string,
+  loc: OpcodeLoc,
+}
+
+export type Opcode = SimpleOpcode | FuncOpcode;
 
 export function createOpcode(opKind: OpKind, argument: number, loc: OpcodeLoc): Opcode {
   return {

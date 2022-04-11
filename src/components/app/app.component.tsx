@@ -8,7 +8,6 @@ import { Modal } from 'components/modal/modal.component';
 import { mandelbrot } from 'consts/programs';
 import { WorkerEvent } from 'consts/worker';
 import { BrainfuckMode } from 'consts/mode';
-import { isWebAssemblySupported } from 'consts/compatibility';
 import { CompilerTimeProfile } from 'types/worker';
 import { converMillisecondToString } from 'utils/time';
 import { modeToString } from 'utils/mode';
@@ -20,8 +19,10 @@ export default function App() {
   const [output, changeOutput] = useState('');
   const [endTime, setEndTime] = useState('???');
   const [compileTime, setCompileTime] = useState('???');
+  const [totalTime, setTotalTime] = useState('???');
   const [statMode, setStatMode] = useState('???');
-  const [currentMode, setCurrentMode] = useState(isWebAssemblySupported ? BrainfuckMode.CompileWebAssembly : BrainfuckMode.CompileJavaScript);
+  const [currentMode, setCurrentMode] = useState(BrainfuckMode.InterpretWithJIT);
+  const [jitThreashold, setJITThreashold] = useState(2);
   const [isRunning, setIsRunning] = useState(false);
   const [open, setOpen] = useState(false);
   const [compiledCode, setCompiledCode] = useState('');
@@ -47,7 +48,7 @@ export default function App() {
   }
 
   function runHandler() {
-    workerRef.current.postMessage({ type: WorkerEvent.start, data: { src: bfSource, mode: currentMode } });
+    workerRef.current.postMessage({ type: WorkerEvent.start, data: { src: bfSource, mode: currentMode, threashold: jitThreashold } });
     setIsRunning(true);
   }
 
@@ -59,6 +60,7 @@ export default function App() {
     ReactDOM.unstable_batchedUpdates(() => {
       setEndTime(converMillisecondToString(time.runTime));
       setCompileTime(converMillisecondToString(time.compileTime));
+      setTotalTime(converMillisecondToString(time.runTime + time.compileTime));
       setStatMode(modeToString(mode));
       setIsRunning(false);
     });
@@ -68,7 +70,7 @@ export default function App() {
     setOpen(true);
     if (compiledCode === '') {
       setIsCodeCompiling(true);
-      workerRef.current.postMessage({ type: WorkerEvent.getGeneratedCode, data: { src: bfSource, mode: currentMode } });
+      workerRef.current.postMessage({ type: WorkerEvent.getGeneratedCode, data: { src: bfSource, mode: currentMode, } });
     }
   }
 
@@ -137,9 +139,9 @@ export default function App() {
 
       <div>
 
-        <CompilerTimeProfiler statMode={statMode} compileTime={compileTime} endTime={endTime} />
+        <CompilerTimeProfiler statMode={statMode} compileTime={compileTime} endTime={endTime} totalTime={totalTime} />
 
-        <CompilerMode currentMode={currentMode} setCurrentMode={setRunMode} />
+        <CompilerMode currentMode={currentMode} setCurrentMode={setRunMode} jitThreashold={jitThreashold} setJITThreashold={setJITThreashold} />
 
       </div>
     </div>
