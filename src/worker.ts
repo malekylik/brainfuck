@@ -1,8 +1,9 @@
 import { parse_from_stream } from './utils/parser';
-import { translate_program, translate_program_to_ast } from 'ir/parser';
+import { translate_ast_to_opcodes, translate_program, translate_program_to_ast } from 'ir/parser';
 import { OptimizationKind } from 'ir/optimization-kinds';
 import { interpret as baseInterpret } from 'interpreter/base-interpreter';
 import { interpret as InterpretWithJumptable } from 'interpreter/interpreter-with-jump';
+import { interpret as InterpretJIT } from 'interpreter/jit-interpreter';
 import { interpret as OptimizedInterpret } from 'interpreter/interpreter';
 import { compile as compileJS, compileToJS } from 'compiler/js/compiler';
 import { compile as compileAsmJS, compileToAsmJS } from 'compiler/asmjs/compiler';
@@ -11,6 +12,8 @@ import { WorkerEvent } from 'consts/worker';
 import { WorkerMessage } from 'types/worker';
 import { BrainfuckMode } from 'consts/mode';
 import { getCompileWatToWasm } from 'compiler/web-assembler/wat2wasm';
+import { converOpcodesToCode } from 'utils/opcodes-to-code';
+import { CompiledModule } from 'types/compiler';
 
 let prevFrame = 0;
 let lastFrame = 0;
@@ -38,17 +41,19 @@ function outF(v: number): void {
 
 let compileFromWatToWasmBin: (wat: string) => Uint8Array;
 
+let jitGeneratedCode = '';
+
 self.addEventListener('message', (e) => {
   const message: WorkerMessage = e.data;
 
   if (message.type === WorkerEvent.start) {
-    const { mode, src } = message.data;
+    const { mode, src, threashold } = message.data;
     const tokens = parse_from_stream(src);
     const time = {
       compileTime: 0,
       runTime: 0,
     };
-    let modulePromise = null;
+    let modulePromise: Promise<CompiledModule> = null;
 
     let now = performance.now();
 
@@ -67,12 +72,22 @@ self.addEventListener('message', (e) => {
       mode === BrainfuckMode.InterpretWithIR ||
       mode === BrainfuckMode.CompileJavaScript ||
       mode === BrainfuckMode.CompileAsmJavaScript ||
-      mode === BrainfuckMode.CompileWebAssembly
+      mode === BrainfuckMode.CompileWebAssembly ||
+      mode === BrainfuckMode.InterpretWithJIT
     ) {
       switch (mode) {
         case BrainfuckMode.InterpretWithIR: {
-          const ops = translate_program(tokens, OptimizationKind.C1);
+          const ops = translate_program(tokens, OptimizationKind.C2);
           modulePromise = OptimizedInterpret(ops, inF, outF);
+          break;
+        }
+        case BrainfuckMode.InterpretWithJIT: {
+          jitGeneratedCode = '';
+
+          const ast = translate_program_to_ast(tokens, OptimizationKind.C2);
+          const ops = translate_ast_to_opcodes(ast);
+
+          modulePromise = InterpretJIT(ops, inF, outF, threashold);
           break;
         }
         case BrainfuckMode.CompileJavaScript: {
@@ -99,8 +114,7 @@ self.addEventListener('message', (e) => {
 
       now = performance.now();
       console.log(`start at ${now}`);
-
-      module.run();
+      const res = module.run();
 
       if (stringToSend !== '') {
         self.postMessage({ type: WorkerEvent.out, data: { value: stringToSend } }); // send the rest
@@ -115,8 +129,14 @@ self.addEventListener('message', (e) => {
 
       time.runTime = end - now;
 
+      if (res) {
+        jitGeneratedCode = converOpcodesToCode(res);
+      }
+
       self.postMessage({ type: WorkerEvent.end, data: { time, mode } });
-    }).catch(() => {
+    }).catch((e) => {
+      console.log('worker: error during running', e);
+
       stringToSend = '';
 
       const end = performance.now();
@@ -159,77 +179,20 @@ self.addEventListener('message', (e) => {
         compiled = compileToWat(ops);
         break;
       }
+      case BrainfuckMode.InterpretWithJIT: {
+        if (jitGeneratedCode === '') {
+          const ast = translate_program_to_ast(tokens, OptimizationKind.C2);
+          const ops = translate_ast_to_opcodes(ast);
+
+          compiled = converOpcodesToCode(ops);
+        } else {
+          compiled = jitGeneratedCode;
+        }
+
+        break;
+      }
     }
 
     self.postMessage({ type: WorkerEvent.getGeneratedCode, data: { mode, src: compiled } });
   }
 });
-
-// parse to js = 25s
-// simple intr 617673.5999999946 = 10m 17s
-// intr with precomputete jump location 280830.3200000082 = 4m 41s
-//    +  -->  179053599
-//    [  -->  422534152
-//    -  -->  177623022
-//    >  -->  4.453.036.023
-//    <  -->  4453036013
-//    ]  -->  835818921
-//    .  -->  6240
-//    .. Total: 10521107970
-// with opcodes 194952.01000000816 = 46.2
-//    +  -->  115369640
-//    [  -->  105793470
-//    -  -->  107116320
-//    >  -->  465.855.475
-//    <  -->  338.151.728
-//    ]  -->  277607115
-//    m  -->  24477084
-//    s  -->  46993495
-//    d  -->  245270103
-//    .  -->  6240
-// >1 d9 <10      --> 116145344
-// >2 d9 <11      --> 31339760
-// +1 >9          --> 30948460
-// >1 +1 >8       --> 9515168
-// <1 d1 >4       --> 9017333
-// >8             --> 8711811
-// >1 d9 <1 +1 >8 --> 7493248
-// <3 d3 <1 +1 <9 --> 5867616
-// <1 d1 >3       --> 4689518
-// >4 d-36 >5     --> 3845696
-// with (LOOP_SET_TO_ZERO, LOOP_MOVE_PTR, LOOP_MOVE_DATA) 31564.180000015767 = 31.5s
-// {2: 516, 3: 812, 4: 1074, 5: 1090, 6: 1091, 7: 1120, 8: 537}
-
-// todo optimize
-// while (__m__[p + 16]) {
-//   while (__m__[p + 16]) {
-//       p += 9;
-//   }
-//   __m__[p + 16] += 1;
-//   while (__m__[p + 16]) {
-//       p += -9;
-//   }
-//   __m__[p + 25] -= 1;
-//   p += 9;
-// }
-
-// todo optimize go back loop
-// while (__m__[p + 52]) {
-//   __m__[p + 53] = 0;
-//   __m__[p + 54] = 0;
-//   __m__[p + 55] = 0;
-//   __m__[p + 56] = 0;
-//   __m__[p + 57] = 0;
-//   __m__[p + 58] = 0;
-//   p += 9;
-// }
-// while (__m__[p + 43]) {
-//   p += -9;
-// }
-// while (__m__[p + 52]) {
-//   __m__[p + 57] = 0;
-//   p += 9;
-// }
-// while (__m__[p + 43]) {
-//   p += -9;
-// }

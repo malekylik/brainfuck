@@ -4,10 +4,11 @@ type CompilerTimeProfilerProps = {
   statMode: string,
   compileTime: string,
   endTime: string,
+  totalTime: string,
 };
 
 export function CompilerTimeProfiler(props: CompilerTimeProfilerProps) {
-  const { statMode, compileTime, endTime } = props;
+  const { statMode, compileTime, totalTime, endTime } = props;
 
   return (
     <div>
@@ -24,6 +25,11 @@ export function CompilerTimeProfiler(props: CompilerTimeProfilerProps) {
       <p>
         <span>end time: </span>
         <span>{endTime}</span>
+      </p>
+
+      <p>
+        <span>total time: </span>
+        <span>{totalTime}</span>
       </p>
   </div>
   );
