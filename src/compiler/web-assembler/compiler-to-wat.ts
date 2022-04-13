@@ -1,23 +1,23 @@
 import { OpKind } from 'ir/opcode-kinds';
-import { TextCoder } from 'utils/text-coder';
 import { Ast, Nodes, ParseSymbol } from 'ir/ast/ast';
+import { StringBuilder } from 'utils/string-builder';
 
 export function compileToWat(ops: Ast): string {
-  let coder = new TextCoder();
+  let coder = new StringBuilder();
   let offset = 0;
   const offset_move_start_stack: Array<number> = [];
 
-  coder.encode(
+  coder.append(
     `(module\n`
   );
 
-  coder.encode(
+  coder.append(
     `(import "env" "print" (func $print (param i32)))\n`
   );
-  coder.encode(
+  coder.append(
     `(import "env" "memory" (memory 1))\n`
   );
-  coder.encode(
+  coder.append(
     `(func $run (local $p i32) (local $p_offset i32) (local $loop_local i32)\n`
   );
 
@@ -26,7 +26,7 @@ export function compileToWat(ops: Ast): string {
       if (op.type === ParseSymbol.ExpressionStatement) {
         switch (op.opkode) {
           case OpKind.INC_PTR: {
-            coder.encode(
+            coder.append(
               `local.get $p\n` +
               `i32.const ${op.argument}\n` +
               `i32.add\n` +
@@ -37,7 +37,7 @@ export function compileToWat(ops: Ast): string {
           }
 
           case OpKind.DEC_PTR: {
-            coder.encode(
+            coder.append(
               `local.get $p\n` +
               `i32.const ${op.argument}\n` +
               `i32.sub\n` +
@@ -60,7 +60,7 @@ export function compileToWat(ops: Ast): string {
           }
 
           case OpKind.INC_DATA: {
-            coder.encode(
+            coder.append(
               `local.get $p\n` +
               `i32.const ${offset}\n` +
               `i32.add\n` +
@@ -76,7 +76,7 @@ export function compileToWat(ops: Ast): string {
           }
 
           case OpKind.DEC_DATA: {
-            coder.encode(
+            coder.append(
               `local.get $p\n` +
               `i32.const ${offset}\n` +
               `i32.add\n` +
@@ -98,7 +98,7 @@ export function compileToWat(ops: Ast): string {
 
           case OpKind.WRITE_STDOUT: {
             if (op.argument > 1) {
-              coder.encode(
+              coder.append(
                 `i32.const ${op.argument}\n` +
                 `local.set $loop_local\n` +
 
@@ -124,7 +124,7 @@ export function compileToWat(ops: Ast): string {
                 `end\n`
               );
             } else {
-              coder.encode(
+              coder.append(
                 `local.get $p\n` +
                 `i32.const ${offset}\n` +
                 `i32.add\n` +
@@ -138,7 +138,7 @@ export function compileToWat(ops: Ast): string {
 
           case OpKind.LOOP_SET_TO_ZERO: {
             // TODO: check store
-            coder.encode(
+            coder.append(
               `local.get $p\n` +
               `i32.const ${offset}\n` +
               `i32.add\n` +
@@ -151,7 +151,7 @@ export function compileToWat(ops: Ast): string {
 
           case OpKind.MUL_INC_DATA: {
             if (op.argument === 1) {
-              coder.encode(
+              coder.append(
                 `local.get $p\n` +
                 `i32.const ${offset}\n` +
                 `i32.add\n` +
@@ -166,7 +166,7 @@ export function compileToWat(ops: Ast): string {
                 `i32.store8\n`
               );
             } else {
-              coder.encode(
+              coder.append(
                 `local.get $p\n` +
                 `i32.const ${offset}\n` +
                 `i32.add\n` +
@@ -189,7 +189,7 @@ export function compileToWat(ops: Ast): string {
 
           case OpKind.MUL_DEC_DATA: {
             if (op.argument === 1) {
-              coder.encode(
+              coder.append(
                 `local.get $p\n` +
                 `i32.const ${offset}\n` +
                 `i32.add\n` +
@@ -204,7 +204,7 @@ export function compileToWat(ops: Ast): string {
                 `i32.store8\n`
               );
             } else {
-              coder.encode(
+              coder.append(
                 `local.get $p\n` +
                 `i32.const ${offset}\n` +
                 `i32.add\n` +
@@ -226,7 +226,7 @@ export function compileToWat(ops: Ast): string {
           }
 
           case OpKind.SET_DATA: {
-            coder.encode(
+            coder.append(
               `local.get $p\n` +
               `i32.const ${offset}\n` +
               `i32.add\n` +
@@ -238,7 +238,7 @@ export function compileToWat(ops: Ast): string {
           }
 
           case OpKind.SEARCH_LOOP: {
-            coder.encode(
+            coder.append(
               `block\n` +
               `loop\n` +
               `local.get $p\n` +
@@ -261,7 +261,7 @@ export function compileToWat(ops: Ast): string {
         }
       } else {
         if (op.opkode === OpKind.LOOP_MOVE_DATA) {
-          coder.encode(
+          coder.append(
             `local.get $p\n` +
             `i32.const ${offset}\n` +
             `i32.add\n` +
@@ -275,7 +275,7 @@ export function compileToWat(ops: Ast): string {
 
           travers(op);
 
-          coder.encode(
+          coder.append(
             `local.get $p\n` +
             `i32.const ${offset_move_start_stack[offset_move_start_stack.length - 1]}\n` +
             `i32.add\n` +
@@ -286,7 +286,7 @@ export function compileToWat(ops: Ast): string {
 
           offset_move_start_stack.pop();
         } else {
-          coder.encode(
+          coder.append(
             `block\n` +
             `loop\n` +
             `local.get $p\n` +
@@ -299,7 +299,7 @@ export function compileToWat(ops: Ast): string {
 
           travers(op);
 
-          coder.encode(
+          coder.append(
             `br 0\n` +
             `end\n` +
             `end\n`
@@ -311,17 +311,17 @@ export function compileToWat(ops: Ast): string {
 
   travers(ops);
 
-  coder.encode(
+  coder.append(
     `)\n` // end func
   );
 
-  coder.encode(`(export "run" (func $run))\n`);
+  coder.append(`(export "run" (func $run))\n`);
 
-  coder.encode(
+  coder.append(
     `)` // end module
   );
 
-  const text = coder.decode();
+  const text = coder.build();
 
   return text;
 }

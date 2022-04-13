@@ -2,8 +2,8 @@ import { OpKind } from 'ir/opcode-kinds';
 import { FuncOpcode, Opcode } from 'ir/opcode';
 import { opKindToChar } from 'ir/utils';
 import { CompiledModule, InputFunction, OutputFunction } from 'types/compiler';
-import { TextCoder } from 'utils/text-coder';
 import { getJITFuncName, toPointer } from 'utils/jit.utils';
+import { StringBuilder } from 'utils/string-builder';
 
 const MEMORY_SIZE = 30000;
 
@@ -13,11 +13,11 @@ function JIT(ops: Array<Opcode>, pc: number, offset: number) {
   const offset_stack: Array<number> = [];
 
   if (jitOp.kind === OpKind.JUMP_IF_DATA_ZERO) {
-    const coder = new TextCoder();
+    const coder = new StringBuilder();
 
-    coder.encode(`return function jit_${jitOpPc}(args){\n`);
+    coder.append(`return function jit_${jitOpPc}(args){\n`);
 
-    coder.encode(`let dataptr = args.dataptr;\n`);
+    coder.append(`let dataptr = args.dataptr;\n`);
 
     pc += 1;
   
@@ -26,13 +26,13 @@ function JIT(ops: Array<Opcode>, pc: number, offset: number) {
 
       switch (op.kind) {
         case OpKind.INC_PTR: {
-          coder.encode(`dataptr += ${op.argument};\n`);
+          coder.append(`dataptr += ${op.argument};\n`);
 
           break;
         }
 
         case OpKind.DEC_PTR: {
-          coder.encode(`dataptr -= ${op.argument};\n`);
+          coder.append(`dataptr -= ${op.argument};\n`);
 
           break;
         }
@@ -50,71 +50,71 @@ function JIT(ops: Array<Opcode>, pc: number, offset: number) {
         }
 
         case OpKind.INC_DATA: {
-          coder.encode(`args.memory[${toPointer(offset)}] += ${op.argument};\n`);
+          coder.append(`args.memory[${toPointer(offset)}] += ${op.argument};\n`);
 
           break;
         }
 
         case OpKind.DEC_DATA: {
-          coder.encode(`args.memory[${toPointer(offset)}] -= ${op.argument};\n`);
+          coder.append(`args.memory[${toPointer(offset)}] -= ${op.argument};\n`);
 
           break;
         }
 
         case OpKind.READ_STDIN: {
-          coder.encode(`for (let i = 0; i < ${op.argument}; i++) args.memory[${toPointer(offset)}] = Number(args.in());\n`);
+          coder.append(`for (let i = 0; i < ${op.argument}; i++) args.memory[${toPointer(offset)}] = Number(args.in());\n`);
 
           break;
         }
 
         case OpKind.WRITE_STDOUT: {
-          coder.encode(`for (let i = 0; i < ${op.argument}; i++) args.out(args.memory[${toPointer(offset)}]);\n`);
+          coder.append(`for (let i = 0; i < ${op.argument}; i++) args.out(args.memory[${toPointer(offset)}]);\n`);
 
           break;
         }
 
         case OpKind.JUMP_IF_DATA_ZERO: {
-          coder.encode(`while (args.memory[${toPointer(offset)}]) {\n`);
+          coder.append(`while (args.memory[${toPointer(offset)}]) {\n`);
           
           break;
         }
 
         case OpKind.JUMP_IF_DATA_NOT_ZERO: {
-          coder.encode(`}\n`);
+          coder.append(`}\n`);
 
           break;
         }
 
         case OpKind.LOOP_SET_TO_ZERO: {
-          coder.encode(`args.memory[${toPointer(offset)}] = 0;\n`);
+          coder.append(`args.memory[${toPointer(offset)}] = 0;\n`);
 
           break;
         }
 
         case OpKind.SEARCH_LOOP: {
-          coder.encode(`while (args.memory[${toPointer(offset)}]) {\n`);
+          coder.append(`while (args.memory[${toPointer(offset)}]) {\n`);
             if (op.argument > 0) {
-              coder.encode(
+              coder.append(
                 `dataptr += ${op.argument};\n`
               );
             } else {
-              coder.encode(
+              coder.append(
                 `dataptr -= ${Math.abs(op.argument)};\n`
               );
             }
-          coder.encode(`}\n`);
+          coder.append(`}\n`);
 
           break;
         }
 
         case OpKind.SET_DATA: {
-          coder.encode(`args.memory[${toPointer(offset)}] = ${op.argument};\n`);
+          coder.append(`args.memory[${toPointer(offset)}] = ${op.argument};\n`);
 
           break;
         }
 
         case OpKind.LOOP_MOVE_DATA: {
-          coder.encode(`if (args.memory[${toPointer(offset)}]) {\n`);
+          coder.append(`if (args.memory[${toPointer(offset)}]) {\n`);
 
           offset_stack.push(offset);
 
@@ -122,7 +122,7 @@ function JIT(ops: Array<Opcode>, pc: number, offset: number) {
         }
 
         case OpKind.LOOP_MOVE_DATA_END: {
-          coder.encode(`}\n`);
+          coder.append(`}\n`);
 
           offset = offset_stack.pop();
 
@@ -132,9 +132,9 @@ function JIT(ops: Array<Opcode>, pc: number, offset: number) {
 
         case OpKind.MUL_INC_DATA: {
           if (op.argument === 1) {
-            coder.encode(`args.memory[${toPointer(offset)}] += args.memory[${toPointer(offset_stack[offset_stack.length - 1])}];\n`);
+            coder.append(`args.memory[${toPointer(offset)}] += args.memory[${toPointer(offset_stack[offset_stack.length - 1])}];\n`);
           } else {
-            coder.encode(`args.memory[${toPointer(offset)}] += args.memory[${toPointer(offset_stack[offset_stack.length - 1])}] * ${op.argument};\n`);
+            coder.append(`args.memory[${toPointer(offset)}] += args.memory[${toPointer(offset_stack[offset_stack.length - 1])}] * ${op.argument};\n`);
           }
           
           break;
@@ -142,20 +142,20 @@ function JIT(ops: Array<Opcode>, pc: number, offset: number) {
 
         case OpKind.MUL_DEC_DATA: {
           if (op.argument === 1) {
-            coder.encode(`args.memory[${toPointer(offset)}] -= args.memory[${toPointer(offset_stack[offset_stack.length - 1])}];\n`);
+            coder.append(`args.memory[${toPointer(offset)}] -= args.memory[${toPointer(offset_stack[offset_stack.length - 1])}];\n`);
           } else {
-            coder.encode(`args.memory[${toPointer(offset)}] -= args.memory[${toPointer(offset_stack[offset_stack.length - 1])}] * ${op.argument};\n`);
+            coder.append(`args.memory[${toPointer(offset)}] -= args.memory[${toPointer(offset_stack[offset_stack.length - 1])}] * ${op.argument};\n`);
           }
           
           break;
         }
 
         case OpKind.RUN_FUNC: {
-          coder.encode(`while (args.memory[${toPointer(offset)}]) {\n`);
-          coder.encode(`args.dataptr = dataptr;\n`);
-          coder.encode(`${(op as FuncOpcode).name}(args);\n`);
-          coder.encode(`dataptr = args.dataptr;\n`)
-          coder.encode(`}\n`);
+          coder.append(`while (args.memory[${toPointer(offset)}]) {\n`);
+          coder.append(`args.dataptr = dataptr;\n`);
+          coder.append(`${(op as FuncOpcode).name}(args);\n`);
+          coder.append(`dataptr = args.dataptr;\n`)
+          coder.append(`}\n`);
 
           pc = op.argument;
 
@@ -172,12 +172,12 @@ function JIT(ops: Array<Opcode>, pc: number, offset: number) {
       pc += 1;
     }
 
-    coder.encode(`args.dataptr = dataptr;\n`);
+    coder.append(`args.dataptr = dataptr;\n`);
 
-    coder.encode(`return ${jitOp.argument};\n`);
-    coder.encode(`}\n`);
+    coder.append(`return ${jitOp.argument};\n`);
+    coder.append(`}\n`);
 
-    const jitFn = (new Function(coder.decode()))();
+    const jitFn = (new Function(coder.build()))();
 
     const name = getJITFuncName(jitOpPc);
 

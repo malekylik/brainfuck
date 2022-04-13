@@ -3,7 +3,7 @@
 import { FuncOpcode, Opcode } from 'ir/opcode';
 import { OpKind } from 'ir/opcode-kinds';
 import { OutputFunction } from 'types/compiler';
-import { TextCoder } from 'utils/text-coder';
+import { StringBuilder } from 'utils/string-builder';
 
 function toPointerASM(offset: number): string {
   return offset === 0 ? `(dataptr|0)` : `((dataptr|0) + ${offset}|0) >> 0`;
@@ -16,7 +16,7 @@ export function JIT_ASM(ops: Array<Opcode>, pc: number, offset: number, heap: Ar
   const offset_stack: Array<number> = [];
 
   if (jitOp.kind === OpKind.JUMP_IF_DATA_ZERO) {
-    const coder = new TextCoder();
+    const coder = new StringBuilder();
 
     const depensFunc: Array<string> = [];
 
@@ -37,13 +37,13 @@ export function JIT_ASM(ops: Array<Opcode>, pc: number, offset: number, heap: Ar
 
       switch (op.kind) {
         case OpKind.INC_PTR: {
-          coder.encode(`dataptr = ((dataptr|0) + ${op.argument})|0;\n`);
+          coder.append(`dataptr = ((dataptr|0) + ${op.argument})|0;\n`);
 
           break;
         }
 
         case OpKind.DEC_PTR: {
-          coder.encode(`dataptr = ((dataptr|0) - ${op.argument})|0;\n`);
+          coder.append(`dataptr = ((dataptr|0) - ${op.argument})|0;\n`);
 
           break;
         }
@@ -61,13 +61,13 @@ export function JIT_ASM(ops: Array<Opcode>, pc: number, offset: number, heap: Ar
         }
 
         case OpKind.INC_DATA: {
-          coder.encode(`memory[${toPointerASM(offset)}] = ((memory[${toPointerASM(offset)}]|0) + ${op.argument})|0;\n`);
+          coder.append(`memory[${toPointerASM(offset)}] = ((memory[${toPointerASM(offset)}]|0) + ${op.argument})|0;\n`);
 
           break;
         }
 
         case OpKind.DEC_DATA: {
-          coder.encode(`memory[${toPointerASM(offset)}] = ((memory[${toPointerASM(offset)}]|0) - ${op.argument})|0;\n`);
+          coder.append(`memory[${toPointerASM(offset)}] = ((memory[${toPointerASM(offset)}]|0) - ${op.argument})|0;\n`);
 
           break;
         }
@@ -81,43 +81,43 @@ export function JIT_ASM(ops: Array<Opcode>, pc: number, offset: number, heap: Ar
         }
 
         case OpKind.WRITE_STDOUT: {
-          coder.encode(`for (let i = 0; (i | 0) < ${op.argument}; i = (i + 1) | 0) out(memory[${toPointerASM(offset)}] | 0);\n`);
+          coder.append(`for (let i = 0; (i | 0) < ${op.argument}; i = (i + 1) | 0) out(memory[${toPointerASM(offset)}] | 0);\n`);
 
           break;
         }
 
         case OpKind.JUMP_IF_DATA_ZERO: {
-          coder.encode(`while (memory[${toPointerASM(offset)}]|0) {\n`);
+          coder.append(`while (memory[${toPointerASM(offset)}]|0) {\n`);
           
           break;
         }
 
         case OpKind.JUMP_IF_DATA_NOT_ZERO: {
-          coder.encode(`}\n`);
+          coder.append(`}\n`);
 
           break;
         }
 
         case OpKind.LOOP_SET_TO_ZERO: {
-          coder.encode(`memory[${toPointerASM(offset)}] = 0|0;\n`);
+          coder.append(`memory[${toPointerASM(offset)}] = 0|0;\n`);
 
           break;
         }
 
         case OpKind.SEARCH_LOOP: {
-          coder.encode(
+          coder.append(
             `while (memory[${toPointerASM(offset)}]|0) {\n`
           );
           if (op.argument > 0) {
-            coder.encode(
+            coder.append(
               `dataptr = ((dataptr|0) + ${op.argument})|0;\n`
             );
           } else {
-            coder.encode(
+            coder.append(
               `dataptr = ((dataptr|0) - ${Math.abs(op.argument)})|0;\n`
             );
           }
-          coder.encode(
+          coder.append(
             `}\n`
           );
 
@@ -125,13 +125,13 @@ export function JIT_ASM(ops: Array<Opcode>, pc: number, offset: number, heap: Ar
         }
 
         case OpKind.SET_DATA: {
-          coder.encode(`memory[${toPointerASM(offset)}] = ${op.argument}|0;\n`);
+          coder.append(`memory[${toPointerASM(offset)}] = ${op.argument}|0;\n`);
 
           break;
         }
 
         case OpKind.LOOP_MOVE_DATA: {
-          coder.encode(`if (memory[${toPointerASM(offset)}]|0) {\n`);
+          coder.append(`if (memory[${toPointerASM(offset)}]|0) {\n`);
 
           offset_stack.push(offset);
 
@@ -139,7 +139,7 @@ export function JIT_ASM(ops: Array<Opcode>, pc: number, offset: number, heap: Ar
         }
 
         case OpKind.LOOP_MOVE_DATA_END: {
-          coder.encode(`}\n`);
+          coder.append(`}\n`);
 
           offset = offset_stack.pop();
 
@@ -149,9 +149,9 @@ export function JIT_ASM(ops: Array<Opcode>, pc: number, offset: number, heap: Ar
 
         case OpKind.MUL_INC_DATA: {
           if (op.argument === 1) {
-            coder.encode(`memory[${toPointerASM(offset)}] += memory[${toPointerASM(offset_stack[offset_stack.length - 1])}];\n`);
+            coder.append(`memory[${toPointerASM(offset)}] += memory[${toPointerASM(offset_stack[offset_stack.length - 1])}];\n`);
           } else {
-            coder.encode(`memory[${toPointerASM(offset)}] += memory[${toPointerASM(offset_stack[offset_stack.length - 1])}] * ${op.argument};\n`);
+            coder.append(`memory[${toPointerASM(offset)}] += memory[${toPointerASM(offset_stack[offset_stack.length - 1])}] * ${op.argument};\n`);
           }
           
           break;
@@ -159,19 +159,19 @@ export function JIT_ASM(ops: Array<Opcode>, pc: number, offset: number, heap: Ar
 
         case OpKind.MUL_DEC_DATA: {
           if (op.argument === 1) {
-            coder.encode(`memory[${toPointerASM(offset)}] -= memory[${toPointerASM(offset_stack[offset_stack.length - 1])}];\n`);
+            coder.append(`memory[${toPointerASM(offset)}] -= memory[${toPointerASM(offset_stack[offset_stack.length - 1])}];\n`);
           } else {
-            coder.encode(`memory[${toPointerASM(offset)}] -= memory[${toPointerASM(offset_stack[offset_stack.length - 1])}] * ${op.argument};\n`);
+            coder.append(`memory[${toPointerASM(offset)}] -= memory[${toPointerASM(offset_stack[offset_stack.length - 1])}] * ${op.argument};\n`);
           }
           
           break;
         }
 
         case OpKind.RUN_FUNC: {
-          coder.encode(`while (memory[${toPointerASM(offset)}]|0) {\n`);
-          coder.encode(`${(op as FuncOpcode).name}(dataptr);\n`);
-          coder.encode(`dataptr = (memory[32769] << 8) | memory[32768]|0;\n`);
-          coder.encode(`}\n`);
+          coder.append(`while (memory[${toPointerASM(offset)}]|0) {\n`);
+          coder.append(`${(op as FuncOpcode).name}(dataptr);\n`);
+          coder.append(`dataptr = (memory[32769] << 8) | memory[32768]|0;\n`);
+          coder.append(`}\n`);
 
           pc = op.argument;
 
@@ -188,13 +188,11 @@ export function JIT_ASM(ops: Array<Opcode>, pc: number, offset: number, heap: Ar
       pc += 1;
     }
 
-    const funcDepCoder = new TextCoder();
+    const funcDepCoder = new StringBuilder();
 
     for (let i = 0; i < depensFunc.length; i++) {
-      funcDepCoder.encode(`var ${depensFunc[i]} = foreign.${depensFunc[i]};\n`);
+      funcDepCoder.append(`var ${depensFunc[i]} = foreign.${depensFunc[i]};\n`);
     }
-
-    // console.log('funcs', funcDepCoder.decode());
 
     const f = `
     return function (stdlib, foreign, buffer){
@@ -202,12 +200,12 @@ export function JIT_ASM(ops: Array<Opcode>, pc: number, offset: number, heap: Ar
   
       var memory = new stdlib.Uint8Array(buffer);
       var out = foreign.out;
-      ${funcDepCoder.decode()}
+      ${funcDepCoder.build()}
     
       function jit_${jitOpPc}(dataptr) {
         dataptr = dataptr|0;
 
-        ${coder.decode()}
+        ${coder.build()}
 
         memory[32768] = dataptr|0;
         memory[32769] = dataptr>>>8;

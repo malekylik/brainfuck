@@ -1,7 +1,7 @@
 import { OpKind } from 'ir/opcode-kinds';
 import { Opcode } from 'ir/opcode';
 import { opKindToChar } from 'ir/utils';
-import { TextCoder } from 'utils/text-coder';
+import { StringBuilder } from 'utils/string-builder';
 
 function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledFunc {
   const memoryName = 'm';
@@ -11,7 +11,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
   let offset = 0;
   let loop_data_offset = 0;
   let loop_data_offsets = [];
-  const coder = new TextCoder();
+  const coder = new StringBuilder();
   const generateNewName = (() => {
     let i = -1;
     return (depth: number) => {
@@ -22,16 +22,16 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
   const loop_depth = [];
   let current_loop_name = generateNewName(0);
 
-  coder.encode(
+  coder.append(
     `return function* () {\n`
   );
-  coder.encode(
+  coder.append(
     `const ${memoryName} = new Uint8Array(${30000});\n`
   );
-  coder.encode(
+  coder.append(
     `let ${dataptr} = 0;\n`
   );
-  coder.encode(
+  coder.append(
     `const ${datanal} = {};\n`
   );
 
@@ -41,7 +41,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
 
       switch (op.kind) {
         case OpKind.INC_PTR: {
-          coder.encode(
+          coder.append(
             `${dataptr} += ${op.argument}; // ${pc}\n`
           );
 
@@ -49,7 +49,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
         }
 
         case OpKind.DEC_PTR: {
-          coder.encode(
+          coder.append(
             `${dataptr} -= ${op.argument}; // ${pc}\n`
           );
 
@@ -69,7 +69,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
         }
 
         case OpKind.INC_DATA: {
-          coder.encode(
+          coder.append(
             `${memoryName}[${dataptr} + ${offset}] += ${op.argument}; // ${pc} \n`
           );
 
@@ -77,7 +77,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
         }
 
         case OpKind.DEC_DATA: {
-          coder.encode(
+          coder.append(
             `${memoryName}[${dataptr} + ${offset}] -= ${op.argument}; // ${pc}\n`
           );
 
@@ -85,7 +85,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
         }
 
         case OpKind.READ_STDIN: {
-          coder.encode(
+          coder.append(
             `for (let i = 0; i < ${op.argument}; i++) ${memoryName}[${dataptr} + ${offset}] = ${inF}(); // ${pc} \n`
           );
 
@@ -94,11 +94,11 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
 
         case OpKind.WRITE_STDOUT: {
           if (op.argument < 2) {
-            coder.encode(
+            coder.append(
               `${outF}(${memoryName}[${dataptr} + ${offset}]); // ${pc} \n`
             );
           } else {
-            coder.encode(
+            coder.append(
               `for (let i = 0; i < ${op.argument}; i++) { yield m; ${outF}(${memoryName}[${dataptr} + ${offset}]); } // ${pc} \n`
             );
           }
@@ -107,7 +107,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
         }
 
         case OpKind.LOOP_SET_TO_ZERO: {
-          coder.encode(
+          coder.append(
             `${memoryName}[${dataptr} + ${offset}] = 0; // ${pc} \n`
           );
 
@@ -117,11 +117,11 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
         case OpKind.LOOP_MOVE_PTR: {
           loop_depth.push(current_loop_name);
           current_loop_name = generateNewName(loop_depth.length);
-          coder.encode(
+          coder.append(
             `// ${current_loop_name}\n`
           );
 
-          coder.encode(
+          coder.append(
             `while (${memoryName}[${dataptr} + ${offset}]) { // ${pc} \n` +
               `yield m;` +
               `${datanal}['${current_loop_name}'] = (1 + (${datanal}['${current_loop_name}'] || 0))\n` +
@@ -133,7 +133,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
           break;
         }
         case OpKind.LOOP_MOVE_DATA: {
-          coder.encode(
+          coder.append(
             `${memoryName}[${dataptr} + ${offset + op.argument}] += ${memoryName}[${dataptr} + ${offset}]; // ${pc} \n` +
             `${memoryName}[${dataptr} + ${offset}] = 0; // ${pc} \n`
           );
@@ -147,15 +147,15 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
           loop_depth.push(current_loop_name);
           current_loop_name = generateNewName(loop_depth.length);
 
-          coder.encode(
+          coder.append(
             `// ${current_loop_name}\n`
           );
 
-          coder.encode(
+          coder.append(
             `while (${memoryName}[${dataptr} + ${offset}]) { yield m; // ${pc} \n`
           );
 
-          coder.encode(
+          coder.append(
             `${datanal}['${current_loop_name}'] = (1 + (${datanal}['${current_loop_name}'] || 0))\n`
           );
 
@@ -163,7 +163,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
         }
 
         case OpKind.JUMP_IF_DATA_NOT_ZERO: {
-          coder.encode(
+          coder.append(
             `}\n`
           );
 
@@ -176,12 +176,12 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
 
         case OpKind.RESET_DATA_RANGE: {
           for (let i = 1; i < op.argument + 1; i++) {
-            coder.encode(
+            coder.append(
               `${memoryName}[${dataptr} + ${offset + i}] = `
             );
           }
 
-          coder.encode(
+          coder.append(
             `${0}; // ${pc} \n`
           );
 
@@ -189,7 +189,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
         }
 
         case OpKind.SET_DATA: {
-          coder.encode(
+          coder.append(
             `${memoryName}[${dataptr} + ${offset}] = ${op.argument}; // ${pc} \n`
           );
 
@@ -199,7 +199,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
         case OpKind.DATA_LOOP: {
           loop_data_offset = offset;
           loop_data_offsets.push(loop_data_offset);
-          coder.encode(
+          coder.append(
             `if (${memoryName}[${dataptr} + ${loop_data_offset}]) { // ${pc} DATA_LOOP \n`
           );
 
@@ -207,7 +207,7 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
         }
 
         case OpKind.DATA_LOOP_END: {
-          coder.encode(
+          coder.append(
             `${memoryName}[${dataptr} + ${loop_data_offset}] = 0;\n` +
             `} // ${pc} DATA_LOOP_END \n`
           );
@@ -219,11 +219,11 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
 
         case OpKind.DATA_LOOP_ADD: {
           if (op.argument === 1) {
-            coder.encode(
+            coder.append(
               `${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}]; // ${pc} \n`
             );
           } else {
-            coder.encode(
+            coder.append(
               `${memoryName}[${dataptr} + ${offset}] += ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument}; // ${pc} \n`
             );
           }
@@ -233,11 +233,11 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
 
         case OpKind.DATA_LOOP_SUB: {
           if (op.argument === 1) {
-            coder.encode(
+            coder.append(
               `${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}]; // ${pc} \n`
             );
           } else {
-            coder.encode(
+            coder.append(
               `${memoryName}[${dataptr} + ${offset}] -= ${memoryName}[${dataptr} + ${loop_data_offset}] * ${op.argument}; // ${pc} \n`
             );
           }
@@ -251,15 +251,15 @@ function compile_debug(ops: Array<Opcode>, inF: string, outF: string): CompiledF
       pc++;
     }
     
-    coder.encode(
+    coder.append(
       `return ${datanal};\n`
     );
 
-  coder.encode(
+  coder.append(
     `}\n`
   );
 
-  const string = coder.decode();
+  const string = coder.build();
 
   return new Function(string) as () => Array<number>;
 }
