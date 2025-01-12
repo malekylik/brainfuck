@@ -38,6 +38,13 @@ function outF(v: number): void {
 
 (self as any)[inF.name] = inF;
 (self as any)[outF.name] = outF;
+(self as any).searchLoop = (memory: Uint8Array, start: number, offset: number, searchParam: number): number => {
+  while (memory[start + offset]) {
+    start += searchParam;
+  }
+
+  return start;
+};
 
 let compileFromWatToWasmBin: (wat: string) => Uint8Array;
 

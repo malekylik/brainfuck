@@ -21,7 +21,7 @@ export default function App() {
   const [compileTime, setCompileTime] = useState('???');
   const [totalTime, setTotalTime] = useState('???');
   const [statMode, setStatMode] = useState('???');
-  const [currentMode, setCurrentMode] = useState(BrainfuckMode.InterpretWithJIT);
+  const [currentMode, setCurrentMode] = useState(BrainfuckMode.CompileJavaScript);
   const [jitThreashold, setJITThreashold] = useState(2);
   const [isRunning, setIsRunning] = useState(false);
   const [open, setOpen] = useState(false);

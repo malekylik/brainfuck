@@ -30,7 +30,7 @@ function compile_prod(ops: Ast, inF: InputFunction, outF: OutputFunction): Promi
 }
 
 function _compileToJS(ops: Ast, inF: InputFunction, outF: OutputFunction): string {
-  const code = `const ${memoryName} = new Uint8Array(30000);\n` + compile_ast(ops, inF, outF);
+  const code = (self as any).searchLoop.toString() + '\n\n' + `const ${memoryName} = new Uint8Array(30000);\n` + compile_ast(ops, inF, outF);
 
   return code;
 }
@@ -152,20 +152,24 @@ function compile_ast(ops: Ast, inF: InputFunction, outF: OutputFunction) {
           }
 
           case OpKind.SEARCH_LOOP: {
+            // coder.encode(
+            //   `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`
+            // );
+            // if (op.argument > 0) {
+            //   coder.encode(
+            //     `${dataptr} += ${op.argument};\n`
+            //   );
+            // } else {
+            //   coder.encode(
+            //     `${dataptr} -= ${Math.abs(op.argument)};\n`
+            //   );
+            // }
+            // coder.encode(
+            //   `}\n`
+            // );
+
             coder.encode(
-              `while (${memoryName}[${offsetDataptr(dataptr, offset)}]) {\n`
-            );
-            if (op.argument > 0) {
-              coder.encode(
-                `${dataptr} += ${op.argument};\n`
-              );
-            } else {
-              coder.encode(
-                `${dataptr} -= ${Math.abs(op.argument)};\n`
-              );
-            }
-            coder.encode(
-              `}\n`
+              `${dataptr} = searchLoop(${memoryName}, ${dataptr}, ${offset}, ${op.argument});\n`
             );
 
             break;
