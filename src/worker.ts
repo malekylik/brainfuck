@@ -53,6 +53,18 @@ let jitGeneratedCode = '';
 self.addEventListener('message', (e) => {
   const message: WorkerMessage = e.data;
 
+  if (message.type === WorkerEvent.init) {
+    const baseURI = message.data.baseURI;
+
+    // TODO: add waiting for init
+    fetch(`${baseURI}/logic-loop.js`)
+    .then((re) => re.blob())
+    .then((b) => {
+      const url = URL.createObjectURL(b);
+      const worker = new Worker(url);
+    });
+  }
+
   if (message.type === WorkerEvent.start) {
     const { mode, src, threashold } = message.data;
     const tokens = parse_from_stream(src);

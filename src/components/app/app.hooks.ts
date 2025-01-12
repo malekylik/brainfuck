@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-import { WorkerMessage, CompilerTimeProfile } from 'types/worker';
+import { WorkerMessage, CompilerTimeProfile, WorkerMessageInit } from 'types/worker';
 import { WorkerEvent } from 'consts/worker';
 import { BrainfuckMode } from 'consts/mode';
 import { isWebAssemblySupported } from 'consts/compatibility';
@@ -42,6 +42,7 @@ export function useWorker(
         }
 
         workerRef.current?.addEventListener('message', messageHandler);
+        workerRef.current?.postMessage({ type: WorkerEvent.init, data: { baseURI: document.baseURI } } as WorkerMessageInit);
         setLoading(false);
       })
       .catch(e => setLoading(false));

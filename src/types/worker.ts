@@ -6,6 +6,13 @@ export type CompilerTimeProfile = {
   compileTime: number;
 };
 
+export type WorkerMessageInit = {
+  type: WorkerEvent.init,
+  data: {
+    baseURI: string,
+  }
+};
+
 export type WorkerMessageStart = {
   type: WorkerEvent.start,
   data: {
@@ -46,6 +53,7 @@ export type WorkerMessageGetGeneratedCode = {
 };
 
 export type WorkerMessage =
+  WorkerMessageInit |
   WorkerMessageStart |
   WorkerMessageOut |
   WorkerMessageEnd |

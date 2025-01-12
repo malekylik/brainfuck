@@ -76,10 +76,7 @@ const config = {
   }
 };
 
-const workerConfig = {
-  entry: {
-    worker: path.resolve(__dirname, 'src', 'worker.ts'),
-  },
+const workerConfigTemplate = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: '[name].js',
@@ -124,18 +121,22 @@ const workerConfig = {
   }
 };
 
-module.exports = (env, argv) => {
-  if (argv.mode === 'production') {
+function getWorkerConfig(workerName, path) {
+  const config = {
+    ...workerConfigTemplate,
+    entry: {
+      [workerName]: path
+    }
+  };
+
+  return config;
+}
+
+function setDevMode(config, mode) {
+  if (mode === 'production') {
     config.mode = 'production';
     config.devtool = 'none';
     config.plugins.push(
-      new DefinePlugin({
-        __DEV__: false
-      })
-    );
-    workerConfig.mode = 'production';
-    workerConfig.devtool = 'none';
-    workerConfig.plugins.push(
       new DefinePlugin({
         __DEV__: false
       })
@@ -148,14 +149,16 @@ module.exports = (env, argv) => {
         __DEV__: true
       })
     );
-    workerConfig.mode = 'development';
-    workerConfig.devtool = 'eval-source-map';
-    workerConfig.plugins.push(
-      new DefinePlugin({
-        __DEV__: true
-      })
-    );
   }
+}
 
-  return [config, workerConfig];
+module.exports = (env, argv) => {
+  const additinalWorker = getWorkerConfig('logic-loop', path.resolve(__dirname, 'src', 'threading', 'logic-loop.ts'));
+  const workerConfig = getWorkerConfig('worker', path.resolve(__dirname, 'src', 'worker.ts'));
+
+  setDevMode(config, argv.mode);
+  setDevMode(additinalWorker, argv.mode);
+  setDevMode(workerConfig, argv.mode);
+
+  return [config, workerConfig, additinalWorker];
 };

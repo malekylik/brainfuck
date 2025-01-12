@@ -1,7 +1,8 @@
 export enum WorkerEvent {
-  start = 0,
-  end = 1,
-  out = 2,
-  setWat2Wasm = 3,
-  getGeneratedCode = 4,
+  init = 0,
+  start = 1,
+  end = 2,
+  out = 3,
+  setWat2Wasm = 4,
+  getGeneratedCode = 5,
 };
